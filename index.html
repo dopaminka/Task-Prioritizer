@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Task Prioritizer v1.1 z Randomize</title>
+  <title>Task Prioritizer v2.1 - Add Items Feature</title>
   <style>
     /* Dark Mode Styles */
     body {
@@ -10,391 +10,931 @@
       background-color: #121212;
       color: #ffffff;
       margin: 20px;
+      text-align: center;
     }
     h1, h2, p {
       color: #ffffff;
     }
     #taskInput {
       width: 100%;
-      height: 80vh;
+      max-width: 800px;
+      height: 60vh;
       background-color: #1e1e1e;
       color: #ffffff;
       border: 1px solid #333333;
       padding: 10px;
       box-sizing: border-box;
+      font-family: monospace;
+      display: block;
+      margin: 0 auto;
+    }
+    .buttons-container {
+        margin-top: 10px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
     }
     button {
-      margin-top: 10px;
       background-color: #333333;
       color: #ffffff;
       border: none;
       padding: 10px 20px;
       cursor: pointer;
       font-size: 16px;
+      transition: background-color 0.2s;
     }
     button:hover {
       background-color: #444444;
     }
-    #comparison {
+    
+    /* Styl dla przycisków kopiowania */
+    #copyButton { background-color: #2a5a2a; }
+    #copyButton:hover { background-color: #3a6a3a; }
+    #copyGapButton { background-color: #2a4a5a; }
+    #copyGapButton:hover { background-color: #3a5a6a; }
+
+    /* Nowe przyciski startowe */
+    #btnBinary { background-color: #334455; }
+    #btnBinary:hover { background-color: #445566; }
+    #btnBucket { background-color: #554433; }
+    #btnBucket:hover { background-color: #665544; }
+    #flattenButton { background-color: #7733aa; }
+    #flattenButton:hover { background-color: #8844bb; }
+
+    /* Kontenery trybów */
+    #comparison, #bucketSorter {
       display: none;
       margin-top: 20px;
     }
-    .taskContainer {
-      display: inline-block;
-      position: relative;
-      width: 45%;
-      margin: 5px;
+
+    .binary-container-flex {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        align-items: flex-start;
+        flex-wrap: wrap;
     }
+
+    /* Styl kafelków zadań */
+    .taskContainer {
+      position: relative;
+      width: 400px; 
+      max-width: 90vw;
+      vertical-align: top;
+      text-align: left;
+    }
+    
+    .singleTaskContainer {
+      width: 80%;
+      max-width: 600px;
+      display: block;
+      margin: 0 auto 20px auto;
+    }
+
     .taskButton {
       width: 100%;
-      height: 100px;
+      min-height: 120px;
       font-size: 16px;
       background-color: #1e1e1e;
       color: #ffffff;
       border: 1px solid #333333;
       cursor: pointer;
+      white-space: pre-wrap; 
+      text-align: left; 
+      padding: 35px 15px 15px 15px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
+    
     .taskButton:hover {
       background-color: #2e2e2e;
+      border-color: #555;
     }
-    .removeButton {
+
+    .bucket-preview {
+        cursor: default;
+        border-color: #554433;
+    }
+    .bucket-preview:hover {
+        background-color: #1e1e1e;
+    }
+
+    .taskButton .main-text {
+        font-weight: bold;
+        margin-bottom: 8px;
+        font-size: 1.1em;
+        line-height: 1.3;
+    }
+    .taskButton .sub-text {
+        font-size: 0.85em;
+        color: #aaaaaa;
+        font-family: monospace;
+    }
+
+    /* Przyciski edycji/usuwania */
+    .removeButton, .editButton {
       position: absolute;
-      top: 2px;
-      right: 2px;
-      background: none;
-      border: none;
-      color: gray;
-      font-size: 14px;
+      top: 4px;
+      background: rgba(30,30,30, 0.8);
+      border: 1px solid #333;
+      font-size: 12px;
       cursor: pointer;
-      opacity: 0.7;
+      opacity: 0.6;
+      z-index: 10;
+      padding: 3px 8px;
+      border-radius: 4px;
     }
-    .removeButton:hover {
-      opacity: 1;
+    .removeButton { right: 4px; color: #ff5555; }
+    .editButton { left: 4px; color: #55aaff; }
+    
+    .removeButton:hover, .editButton:hover { opacity: 1; background-color: #333; }
+
+    /* Sekcja kubełków */
+    .bucket-grid {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        flex-wrap: wrap;
+        max-width: 800px;
+        margin: 0 auto;
     }
-    .editButton {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      background: none;
-      border: none;
-      color: gray;
-      font-size: 14px;
-      cursor: pointer;
-      opacity: 0.7;
+    .bucket-btn {
+        flex: 1;
+        min-width: 150px;
+        padding: 20px 10px;
+        font-weight: bold;
+        border: 1px solid #444;
+        font-size: 1.1em;
     }
-    .editButton:hover {
-      opacity: 1;
-    }
-    #undoButton {
-      margin-top: 10px;
+    .b-high { border-bottom: 5px solid #ff4444; color: #ffcccc; }
+    .b-mid  { border-bottom: 5px solid #ffaa44; color: #ffddcc; }
+    .b-low  { border-bottom: 5px solid #44ff44; color: #ccffcc; }
+
+    .b-high:hover { background-color: #3a1a1a; }
+    .b-mid:hover  { background-color: #3a2a1a; }
+    .b-low:hover  { background-color: #1a3a1a; }
+
+    /* Przyciski kontrolne */
+    #undoButton, #undoButtonBinary, #undoButtonBucket {
+      margin-top: 20px;
       background-color: #555555;
-      color: #ffffff;
-      border: none;
-      padding: 10px 20px;
-      cursor: pointer;
-      font-size: 16px;
+      padding: 8px 25px;
     }
-    #undoButton:hover {
-      background-color: #666666;
+    
+    /* NOWY PRZYCISK DODAWANIA */
+    .addNewButton {
+        margin-top: 20px;
+        margin-left: 10px;
+        background-color: #2a5a2a;
+        padding: 8px 20px;
+        border: 1px solid #444;
     }
-    #progress {
-      margin-top: 10px;
+    .addNewButton:hover {
+        background-color: #3a6a3a;
     }
-    ol {
-      padding-left: 20px;
+
+    #progress, .lessImportant {
+      margin-top: 15px;
+      color: #888;
+    }
+    
+    /* Wyniki */
+    #rankedTasks {
+        margin-top: 20px;
+        text-align: left;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .group-header {
+        margin-top: 25px;
+        margin-bottom: 10px;
+        padding: 8px 15px;
+        background-color: #252525;
+        font-weight: bold;
+        font-size: 1.1em;
+        border-left: 6px solid #555;
+        border-radius: 0 4px 4px 0;
+    }
+    .gh-high { border-color: #ff4444; color: #ffcccc; }
+    .gh-mid  { border-color: #ffaa44; color: #ffddcc; }
+    .gh-low  { border-color: #44ff44; color: #ccffcc; }
+
+    ol.result-list {
+      padding-left: 25px;
+      margin-top: 0;
     }
     li {
-      margin-bottom: 5px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 5px;
     }
-    .lessImportant {
-      color: gray;
+    .result-children {
+        font-family: monospace;
+        color: #cccccc;
+        white-space: pre; 
+        display: block;
+        margin-top: 4px;
+        font-size: 0.9em;
     }
-    #result {
-      display: none;
+    #result { display: none; }
+
+    /* --- MODAL EDYCJI --- */
+    .modal-overlay {
+        display: none; 
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background-color: rgba(0, 0, 0, 0.85);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        text-align: left;
     }
+    .modal-content {
+        background-color: #1e1e1e;
+        border: 1px solid #444;
+        padding: 20px;
+        width: 90%;
+        max-width: 600px;
+        border-radius: 8px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+    #editTaskTextarea {
+        width: 100%;
+        height: 250px;
+        background-color: #121212;
+        color: #ffffff;
+        border: 1px solid #333;
+        padding: 10px;
+        font-family: monospace;
+        margin-bottom: 15px;
+        resize: vertical;
+        box-sizing: border-box;
+    }
+    .modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    #saveEditBtn { background-color: #2a5a2a; }
+    #cancelEditBtn { background-color: #552222; }
+
   </style>
 </head>
 <body>
 
-  <h1>Task Prioritizer v1.1 z Randomize</h1>
+  <h1>Task Prioritizer v2.1 (With Add Feature)</h1>
 
-  <textarea id="taskInput" placeholder="Wklej listę zadań, jedno zadanie w wierszu..."></textarea><br>
-  <button id="startButton">Rozpocznij porównywanie zadań</button>
-  <button id="cleanButton">Oczyść tekst</button>
-  <button id="randomizeButton">Randomizuj tekst</button>
-
-
-  <div id="comparison">
-    <h2>Które zadanie jest ważniejsze?</h2>
-    <div class="taskContainer">
-      <button id="editTaskA" class="editButton">✎</button>
-      <button id="removeTaskA" class="removeButton">X</button>
-      <button id="taskAButton" class="taskButton"></button>
-    </div>
-    <div class="taskContainer">
-      <button id="editTaskB" class="editButton">✎</button>
-      <button id="removeTaskB" class="removeButton">X</button>
-      <button id="taskBButton" class="taskButton"></button>
-    </div>
-    <p id="progress" class="lessImportant"></p>
-    <p class="lessImportant">
-      Naciśnij <strong>1</strong> aby wybrać lewe zadanie, <strong>2</strong> aby wybrać prawe zadanie.
-    </p>
-    <button id="undoButton">Cofnij</button>
+  <textarea id="taskInput" placeholder="Wklej listę zadań z Obsidian (z wcięciami)..."></textarea><br>
+  
+  <div class="buttons-container" id="startButtonsContainer">
+      <button id="btnBucket">Sortowanie Kubełkowe (3 Priorytety)</button>
+      <button id="btnBinary">Sortowanie Binarne (Dokładne)</button>
+      <button id="cleanButton">Oczyść puste linie</button>
+      <button id="flattenButton">Promuj podpunkty (Usuń rodziców)</button>
+      <button id="randomizeButton">Randomizuj</button>
   </div>
 
+  <!-- MODAL EDYCJI / DODAWANIA -->
+  <div id="editModal" class="modal-overlay">
+      <div class="modal-content">
+          <h3>Edycja zadania</h3>
+          <p style="font-size: 0.9em; color: #aaa;">Pierwsza linia to główny tytuł. Kolejne linie to podpunkty.</p>
+          <textarea id="editTaskTextarea"></textarea>
+          <div class="modal-buttons">
+              <button id="cancelEditBtn">Anuluj</button>
+              <button id="saveEditBtn">Zapisz zmiany</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- TRYB BINARNY -->
+  <div id="comparison">
+    <h2>Które zadanie jest ważniejsze?</h2>
+    
+    <!-- Nowy kontener Flex do centrowania guzików -->
+    <div class="binary-container-flex">
+        <div class="taskContainer">
+          <button id="editTaskA" class="editButton">✎ Edytuj</button>
+          <button id="removeTaskA" class="removeButton">X Usuń</button>
+          <button id="taskAButton" class="taskButton"></button>
+        </div>
+        
+        <div class="taskContainer">
+          <button id="editTaskB" class="editButton">✎ Edytuj</button>
+          <button id="removeTaskB" class="removeButton">X Usuń</button>
+          <button id="taskBButton" class="taskButton"></button>
+        </div>
+    </div>
+
+    <p id="progress" class="lessImportant"></p>
+    <p class="lessImportant">
+      Klawisze: <strong>1</strong> (Lewe), <strong>2</strong> (Prawe), <strong>C</strong> (Cofnij).
+    </p>
+    
+    <div class="buttons-container">
+        <button id="undoButtonBinary">Cofnij</button>
+        <button id="addTaskBinary" class="addNewButton">➕ Dodaj nowe zadanie</button>
+    </div>
+  </div>
+
+  <!-- TRYB KUBEŁKOWY -->
+  <div id="bucketSorter">
+    <h2>Przypisz priorytet zadaniu:</h2>
+    
+    <div class="taskContainer singleTaskContainer">
+        <button id="editBucketTask" class="editButton">✎ Edytuj</button>
+        <button id="removeBucketTask" class="removeButton">X Usuń</button>
+        <button id="bucketTaskDisplay" class="taskButton bucket-preview"></button>
+    </div>
+
+    <div class="bucket-grid">
+        <button class="bucket-btn b-high" data-bucket="0">1. Wysoki (High)</button>
+        <button class="bucket-btn b-mid" data-bucket="1">2. Średni (Mid)</button>
+        <button class="bucket-btn b-low" data-bucket="2">3. Niski (Low)</button>
+    </div>
+
+    <p id="bucketProgress" class="lessImportant"></p>
+    <p class="lessImportant">
+        Klawisze: <strong>1</strong> (High), <strong>2</strong> (Mid), <strong>3</strong> (Low), <strong>C</strong> (Cofnij).
+    </p>
+    
+    <div class="buttons-container">
+        <button id="undoButtonBucket">Cofnij</button>
+        <button id="addTaskBucket" class="addNewButton">➕ Dodaj nowe zadanie</button>
+    </div>
+  </div>
+
+  <!-- WYNIK -->
   <div id="result">
     <h2>Zadania posortowane według ważności:</h2>
-    <ol id="rankedTasks"></ol>
+    <div id="rankedTasks"></div>
+    
+    <div class="buttons-container">
+        <button id="copyButton">📋 Kopiuj (Nagłówki)</button>
+        <button id="copyGapButton">📑 Kopiuj (Puste linie)</button> 
+        <button onclick="location.reload()">Zacznij od nowa</button>
+    </div>
   </div>
 
   <script>
-    // Globalne zmienne
-    let tasks = [];
-															  
+    // --- Globalne zmienne ---
+    let tasks = []; 
     let decisionHistory = [];
-															 
     let decisionIndex = 0;
     let comparisonsMade = 0;
     let remainingExpectedComparisons = 0;
-																					 
-    let currentDecisionResolve = null;
+    let currentResolve = null; 
 
-    // Obsługa przycisku czyszczenia tekstu
+    let buckets = [[], [], []]; 
+    let bucketHistory = []; 
+    
+    // --- PARSOWANIE ---
+    function parseTextToBlocks(text) {
+        const lines = text.split('\n');
+        const blocks = [];
+        let currentBlock = null;
+
+        lines.forEach(line => {
+            if (line.trim() === '') return; 
+            const isIndented = line.match(/^\s/);
+
+            if (!isIndented) {
+                currentBlock = { text: line, children: [] };
+                blocks.push(currentBlock);
+            } else {
+                if (currentBlock) {
+                    currentBlock.children.push(line);
+                } else {
+                    currentBlock = { text: line, children: [] };
+                    blocks.push(currentBlock);
+                }
+            }
+        });
+        return blocks;
+    }
+
+    function blocksToText(blocks) {
+        return blocks.map(block => {
+            let blockText = block.text;
+            if (block.children.length > 0) blockText += '\n' + block.children.join('\n');
+            return blockText;
+        }).join('\n');
+    }
+
+    function prepareTasks() {
+        const taskInput = document.getElementById('taskInput');
+        if (taskInput.value.trim() === '') {
+            alert('Proszę wkleić listę zadań.');
+            return false;
+        }
+        tasks = parseTextToBlocks(taskInput.value);
+        if (tasks.length < 1) return false;
+
+        document.getElementById('taskInput').style.display = 'none';
+        document.getElementById('startButtonsContainer').style.display = 'none';
+        return true;
+    }
+
     document.getElementById('cleanButton').addEventListener('click', function() {
-      const taskInput = document.getElementById('taskInput');
-      const lines = taskInput.value.split('\n');
-      const cleanedLines = lines.filter(line => !line.startsWith('\t'));
-      taskInput.value = cleanedLines.join('\n');
+      const t = document.getElementById('taskInput');
+      t.value = t.value.split('\n').filter(line => line.trim().length > 0).join('\n');
     });
 
-    // Obsługa przycisku randomizującego tekst
+    document.getElementById('flattenButton').addEventListener('click', function() {
+      const t = document.getElementById('taskInput');
+      const lines = t.value.split('\n');
+      const newLines = [];
+      let foundIndented = false;
+
+      lines.forEach(line => {
+        if (line.match(/^(\t|\s{2})/)) {
+           foundIndented = true;
+           newLines.push(line.replace(/^(\t|\s{2,4})/, ''));
+        }
+      });
+
+      if (!foundIndented && t.value.trim().length > 0) {
+          alert("Nie znaleziono wciętych podpunktów do awansowania (brak wcięć w tekście).");
+      } else {
+          t.value = newLines.join('\n');
+      }
+    });
+
     document.getElementById('randomizeButton').addEventListener('click', function() {
-      const taskInput = document.getElementById('taskInput');
-      let lines = taskInput.value.split('\n');
-      for (let i = lines.length - 1; i > 0; i--) {
+      const t = document.getElementById('taskInput');
+      let b = parseTextToBlocks(t.value);
+      if (b.length < 2) return;
+      for (let i = b.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [lines[i], lines[j]] = [lines[j], lines[i]];
+        [b[i], b[j]] = [b[j], b[i]];
       }
-      taskInput.value = lines.join('\n');
+      t.value = blocksToText(b);
     });
 
-    // Obsługa przycisku startowego
-    document.getElementById('startButton').addEventListener('click', function() {
-      const taskInputElement = document.getElementById('taskInput');
-      const inputText = taskInputElement.value.trim();
-      if (inputText === '') {
-        alert('Proszę wkleić listę zadań.');
-        return;
-      }
+    // ==========================================
+    // === NOWA FUNKCJA: DODAWANIE W TRAKCIE ===
+    // ==========================================
+
+    function showAddTaskModal() {
+        const modal = document.getElementById('editModal');
+        const textarea = document.getElementById('editTaskTextarea');
+        const saveBtn = document.getElementById('saveEditBtn');
+        const cancelBtn = document.getElementById('cancelEditBtn');
+        const title = modal.querySelector('h3');
+
+        // Reset UI
+        textarea.value = '';
+        title.textContent = "Dodaj nowe zadanie (na koniec kolejki)";
+        modal.style.display = 'flex';
+
+        // Logika zapisu nowego zadania
+        saveBtn.onclick = function() {
+            const content = textarea.value;
+            const lines = content.split('\n');
+            
+            if (lines.length > 0 && lines[0].trim() !== "") {
+                const newTask = { text: lines[0], children: [] };
+                if (lines.length > 1) {
+                    newTask.children = lines.slice(1);
+                }
+                
+                // Dodaj do głównej tablicy.
+                // Pętle sortowania (for/while) sprawdzają tasks.length dynamicznie,
+                // więc nowe zadanie zostanie automatycznie uwzględnione.
+                tasks.push(newTask);
+                
+                // Aktualizacja liczników UI zależnie od aktywnego trybu
+                if (document.getElementById('comparison').style.display === 'block') {
+                    // Tryb Binarny: dodajemy przybliżony koszt logarytmiczny do licznika
+                    remainingExpectedComparisons += Math.ceil(Math.log2(tasks.length)); 
+                    updateBinaryProgress();
+                } 
+                else if (document.getElementById('bucketSorter').style.display === 'block') {
+                    // Tryb Kubełkowy: aktualizujemy tylko tekst "z Y"
+                    const bucketProgress = document.getElementById('bucketProgress');
+                    let currentText = bucketProgress.textContent;
+                    // Wyciągnij obecny numer zadania (np. "Zadanie 5 z 10")
+                    let match = currentText.match(/Zadanie (\d+)/);
+                    if (match) {
+                        let currentIndex = parseInt(match[1]) - 1;
+                        updateBucketProgress(currentIndex, tasks.length);
+                    }
+                }
+
+                modal.style.display = 'none';
+            } else {
+                alert("Zadanie nie może być puste!");
+            }
+        };
+
+        cancelBtn.onclick = function() {
+            modal.style.display = 'none';
+        };
+    }
+
+    document.getElementById('addTaskBinary').addEventListener('click', showAddTaskModal);
+    document.getElementById('addTaskBucket').addEventListener('click', showAddTaskModal);
+
+
+    // ==========================================
+    // === TRYB 1: SORTOWANIE BINARNE ===
+    // ==========================================
+
+    document.getElementById('btnBinary').addEventListener('click', function() {
+      if (!prepareTasks()) return;
+      if (tasks.length < 2) { alert("Potrzeba min. 2 zadań do porównania."); location.reload(); return; }
       
-      // Ukryj elementy wejściowe
-      taskInputElement.style.display = 'none';
-      document.getElementById('startButton').style.display = 'none';
-      document.getElementById('cleanButton').style.display = 'none';
-      document.getElementById('randomizeButton').style.display = 'none';
-
-      tasks = inputText.split('\n')
-                .map(task => task.trim())
-                .filter(task => task !== '')
-                .map(text => ({ text: text }));
-      if (tasks.length < 2) {
-        alert('Proszę wprowadzić co najmniej dwa zadania.');
-        return;
-      }
-      // Resetujemy historię decyzji oraz liczniki
       decisionHistory = [];
-      decisionIndex = 0;
-      comparisonsMade = 0;
-      remainingExpectedComparisons = 0;
-      for (let i = 1; i < tasks.length; i++) {
-        remainingExpectedComparisons += Math.ceil(Math.log2(i + 1));
-      }
-      updateProgress();
-      runSort();
+      runBinarySort();
     });
 
-    // Aktualizacja paska postępu
-    function updateProgress() {
-      document.getElementById('progress').textContent =
-        `Porównanie ${comparisonsMade} z około ${comparisonsMade + remainingExpectedComparisons}`;
-    }
-
-    // Funkcja odtwarzająca sortowanie z wykorzystaniem zapisanej historii decyzji
-																				  
-    async function runSort() {
-											 
-      decisionIndex = 0;
-      comparisonsMade = 0;
-      remainingExpectedComparisons = 0;
-      for (let i = 1; i < tasks.length; i++) {
-        remainingExpectedComparisons += Math.ceil(Math.log2(i + 1));
-      }
-      let sorted = [];
-      sorted.push(tasks[0]);
-      try {
-        for (let i = 1; i < tasks.length; i++) {
-          remainingExpectedComparisons -= Math.ceil(Math.log2(sorted.length + 1));
-          let insertIndex = await binarySearchInsertIndex(sorted, tasks[i]);
-          if (insertIndex !== null) {
-            sorted.splice(insertIndex, 0, tasks[i]);
-          }
-          updateProgress();
-        }
-        showResults(sorted);
-      } catch (e) {
-        if (e.message === 'undo') {
-																									  
-          runSort();
-        } else {
-          throw e;
-        }
-      }
-    }
-
-    // Funkcja wykonująca wyszukiwanie binarne (z interaktywnymi porównaniami)
-    async function binarySearchInsertIndex(sortedList, task) {
-      let low = 0, high = sortedList.length;
-      while (low < high) {
-        let mid = Math.floor((low + high) / 2);
-        comparisonsMade++;
-        updateProgress();
-        let decision;
-																	   
-        if (decisionHistory[decisionIndex] !== undefined) {
-          decision = decisionHistory[decisionIndex];
-          decisionIndex++;
-        } else {
-          decision = await showComparisonWithUndo(task, sortedList[mid]);
-          if (decision.action !== 'undo') {
-            decisionHistory.push(decision);
-            decisionIndex++;
-          }
-        }
-        if (decision.action === 'undo') {
-																						 
-          if (decisionHistory.length > 0) {
-            decisionHistory.pop();
-            decisionIndex = decisionHistory.length;
-          }
-          throw new Error('undo');
-        } else if (decision.action === 'remove') {
-          if (decision.chosen === 'current') {
-																	 
-            return null;
-          } else if (decision.chosen === 'mid') {
-												   
-            sortedList.splice(mid, 1);
-            high = sortedList.length;
-            continue;
-          }
-        } else if (decision.action === 'choose') {
-          if (decision.chosen === 'current') {
-																					  
-            high = mid;
-          } else {
-																			   
-            low = mid + 1;
-          }
-        }
-      }
-      return low;
-    }
-
-    // Funkcja pokazująca interaktywne porównanie z obsługą przycisku Cofnij
-							   
-																								 
-																						 
-																		 
-												 
-    function showComparisonWithUndo(taskAObj, taskBObj) {
-      return new Promise(resolve => {
+    async function runBinarySort() {
         document.getElementById('comparison').style.display = 'block';
-        document.getElementById('result').style.display = 'none';
+        
+        decisionIndex = 0;
+        comparisonsMade = 0;
+        
+        remainingExpectedComparisons = 0;
+        for (let i = 1; i < tasks.length; i++) remainingExpectedComparisons += Math.ceil(Math.log2(i + 1));
+        updateBinaryProgress();
 
-        document.getElementById('taskAButton').textContent = taskAObj.text;
-        document.getElementById('taskBButton').textContent = taskBObj.text;
+        let sorted = [tasks[0]];
 
-														   
-        function cleanup() {
-          document.getElementById('taskAButton').removeEventListener('click', onTaskAClick);
-          document.getElementById('taskBButton').removeEventListener('click', onTaskBClick);
-          document.getElementById('removeTaskA').removeEventListener('click', onRemoveTaskAClick);
-          document.getElementById('removeTaskB').removeEventListener('click', onRemoveTaskBClick);
-          document.getElementById('editTaskA').removeEventListener('click', onEditTaskAClick);
-          document.getElementById('editTaskB').removeEventListener('click', onEditTaskBClick);
-          document.getElementById('undoButton').removeEventListener('click', onUndoClick);
-          document.removeEventListener('keydown', onKeyDown);
-          currentDecisionResolve = null;
+        try {
+            // Pętla sprawdza tasks.length dynamicznie. 
+            // Jeśli w trakcie dodamy zadanie, loop pójdzie dalej.
+            for (let i = 1; i < tasks.length; i++) {
+                remainingExpectedComparisons -= Math.ceil(Math.log2(sorted.length + 1));
+                // Jeśli dodaliśmy nowe zadanie w trakcie, remainingExpectedComparisons może być nieprecyzyjne,
+                // ale updateBinaryProgress wyświetli poprawny stan.
+                
+                let insertIndex = await binarySearchInsertIndex(sorted, tasks[i]);
+                if (insertIndex !== null) {
+                    sorted.splice(insertIndex, 0, tasks[i]);
+                }
+                updateBinaryProgress();
+            }
+            showBinaryResults(sorted); 
+        } catch (e) {
+            if (e.message === 'undo') {
+                runBinarySort(); 
+            } else {
+                console.error(e);
+            }
+        }
+    }
+
+    async function binarySearchInsertIndex(sortedList, task) {
+        let low = 0, high = sortedList.length;
+        while (low < high) {
+            let mid = Math.floor((low + high) / 2);
+            comparisonsMade++;
+            updateBinaryProgress();
+            
+            let decision;
+            if (decisionHistory[decisionIndex] !== undefined) {
+                decision = decisionHistory[decisionIndex];
+                decisionIndex++;
+            } else {
+                decision = await showBinaryComparison(task, sortedList[mid]);
+                if (decision.action !== 'undo') {
+                    decisionHistory.push(decision);
+                    decisionIndex++;
+                }
+            }
+
+            if (decision.action === 'undo') {
+                if (decisionHistory.length > 0) {
+                    decisionHistory.pop();
+                    decisionIndex = decisionHistory.length;
+                }
+                throw new Error('undo');
+            } 
+            else if (decision.action === 'remove') {
+                if (decision.chosen === 'current') return null; 
+                else if (decision.chosen === 'mid') {
+                    sortedList.splice(mid, 1); 
+                    high = sortedList.length; 
+                    continue;
+                }
+            } 
+            else if (decision.action === 'choose') {
+                if (decision.chosen === 'current') high = mid; 
+                else low = mid + 1;
+            }
+        }
+        return low;
+    }
+
+    function showBinaryComparison(taskA, taskB) {
+        return new Promise(resolve => {
+            renderTaskInButton('taskAButton', taskA);
+            renderTaskInButton('taskBButton', taskB);
+            currentResolve = resolve;
+
+            const handle = (res) => { cleanupBinary(); resolve(res); };
+            
+            document.getElementById('taskAButton').onclick = () => handle({action: 'choose', chosen: 'current'});
+            document.getElementById('taskBButton').onclick = () => handle({action: 'choose', chosen: 'mid'});
+            document.getElementById('removeTaskA').onclick = () => handle({action: 'remove', chosen: 'current'});
+            document.getElementById('removeTaskB').onclick = () => handle({action: 'remove', chosen: 'mid'});
+            document.getElementById('undoButtonBinary').onclick = () => handle({action: 'undo'});
+            
+            document.getElementById('editTaskA').onclick = () => editTask(taskA, 'taskAButton');
+            document.getElementById('editTaskB').onclick = () => editTask(taskB, 'taskBButton');
+
+            document.onkeydown = (e) => {
+                if (e.key === '1') handle({action: 'choose', chosen: 'current'});
+                if (e.key === '2') handle({action: 'choose', chosen: 'mid'});
+                if (e.key.toLowerCase() === 'c') handle({action: 'undo'});
+            };
+        });
+    }
+
+    function cleanupBinary() {
+        document.onkeydown = null;
+        document.getElementById('taskAButton').onclick = null;
+        document.getElementById('taskBButton').onclick = null;
+        currentResolve = null;
+    }
+
+    function updateBinaryProgress() {
+        // Wyświetlamy aktualny stan
+        document.getElementById('progress').textContent = `Porównanie ${comparisonsMade} z ok. ${Math.max(comparisonsMade, comparisonsMade + remainingExpectedComparisons)}`;
+    }
+
+
+    // ==========================================
+    // === TRYB 2: SORTOWANIE KUBEŁKOWE ===
+    // ==========================================
+
+    document.getElementById('btnBucket').addEventListener('click', function() {
+        if (!prepareTasks()) return;
+        runBucketSort();
+    });
+
+    async function runBucketSort() {
+        document.getElementById('bucketSorter').style.display = 'block';
+        document.getElementById('comparison').style.display = 'none';
+
+        buckets = [[], [], []];
+        bucketHistory = [];
+        let i = 0;
+
+        // Używamy while, aby reagować na zmianę tasks.length w locie
+        while (i < tasks.length) {
+            const task = tasks[i];
+            updateBucketProgress(i, tasks.length);
+
+            let decision = await showBucketDecision(task);
+
+            if (decision.action === 'undo') {
+                if (i > 0) {
+                    i--; 
+                    const lastOp = bucketHistory.pop();
+                    if (lastOp && lastOp.bucketIndex !== -1) {
+                        buckets[lastOp.bucketIndex].pop();
+                    }
+                }
+            } else if (decision.action === 'remove') {
+                bucketHistory.push({ taskIndex: i, bucketIndex: -1 }); 
+                i++;
+            } else if (decision.action === 'bucket') {
+                buckets[decision.bucketIndex].push(task);
+                bucketHistory.push({ taskIndex: i, bucketIndex: decision.bucketIndex });
+                i++;
+            }
         }
 
-        function onTaskAClick() {
-          cleanup();
-																										  
-          resolve({ action: 'choose', chosen: 'current' });
-        }
-        function onTaskBClick() {
-          cleanup();
-          resolve({ action: 'choose', chosen: 'mid' });
-        }
-        function onRemoveTaskAClick() {
-          cleanup();
-          resolve({ action: 'remove', chosen: 'current' });
-        }
-        function onRemoveTaskBClick() {
-          cleanup();
-          resolve({ action: 'remove', chosen: 'mid' });
-        }
-        function onEditTaskAClick() {
-          let newText = prompt("Edytuj treść zadania:", taskAObj.text);
-          if (newText !== null && newText.trim() !== "") {
-            taskAObj.text = newText.trim();
-            document.getElementById('taskAButton').textContent = taskAObj.text;
-          }
-        }
-        function onEditTaskBClick() {
-          let newText = prompt("Edytuj treść zadania:", taskBObj.text);
-          if (newText !== null && newText.trim() !== "") {
-            taskBObj.text = newText.trim();
-            document.getElementById('taskBButton').textContent = taskBObj.text;
-          }
-        }
-        function onUndoClick() {
-          cleanup();
-          resolve({ action: 'undo' });
-        }
-        function onKeyDown(event) {
-          if (event.key === '1') { cleanup(); resolve({ action: 'choose', chosen: 'current' }); }
-          else if (event.key === '2') { cleanup(); resolve({ action: 'choose', chosen: 'mid' }); }
-          else if (event.key.toLowerCase() === 'c') { cleanup(); resolve({ action: 'undo' }); }
-        }
+        document.getElementById('bucketSorter').style.display = 'none';
+        showBucketResults(buckets);
+    }
 
-        document.getElementById('taskAButton').addEventListener('click', onTaskAClick);
-        document.getElementById('taskBButton').addEventListener('click', onTaskBClick);
-        document.getElementById('removeTaskA').addEventListener('click', onRemoveTaskAClick);
-        document.getElementById('removeTaskB').addEventListener('click', onRemoveTaskBClick);
-        document.getElementById('editTaskA').addEventListener('click', onEditTaskAClick);
-        document.getElementById('editTaskB').addEventListener('click', onEditTaskBClick);
-        document.getElementById('undoButton').addEventListener('click', onUndoClick);
-        document.addEventListener('keydown', onKeyDown);
+    function showBucketDecision(task) {
+        return new Promise(resolve => {
+            renderTaskInButton('bucketTaskDisplay', task);
+            
+            const handle = (res) => { 
+                document.onkeydown = null;
+                resolve(res); 
+            };
 
-        currentDecisionResolve = resolve;
+            const bucketBtns = document.querySelectorAll('.bucket-btn');
+            bucketBtns.forEach(btn => {
+                btn.onclick = () => {
+                    let bIdx = parseInt(btn.getAttribute('data-bucket'));
+                    handle({ action: 'bucket', bucketIndex: bIdx });
+                };
+            });
+
+            document.getElementById('removeBucketTask').onclick = () => handle({ action: 'remove' });
+            document.getElementById('undoButtonBucket').onclick = () => handle({ action: 'undo' });
+            document.getElementById('editBucketTask').onclick = () => editTask(task, 'bucketTaskDisplay');
+
+            document.onkeydown = (e) => {
+                if (['1','2','3'].includes(e.key)) {
+                    let idx = parseInt(e.key) - 1;
+                    handle({ action: 'bucket', bucketIndex: idx });
+                }
+                if (e.key.toLowerCase() === 'c') handle({ action: 'undo' });
+            };
+        });
+    }
+
+    function updateBucketProgress(current, total) {
+        document.getElementById('bucketProgress').textContent = `Zadanie ${current + 1} z ${total}`;
+    }
+
+
+    // ==========================================
+    // === WSPÓLNE FUNKCJE (RENDER, WYNIKI) ===
+    // ==========================================
+
+    function renderTaskInButton(btnId, taskObj) {
+        const btn = document.getElementById(btnId);
+        btn.innerHTML = ''; 
+        
+        const mainSpan = document.createElement('span');
+        mainSpan.className = 'main-text';
+        mainSpan.textContent = taskObj.text;
+        btn.appendChild(mainSpan);
+
+        if (taskObj.children && taskObj.children.length > 0) {
+            const subSpan = document.createElement('span');
+            subSpan.className = 'sub-text';
+            const preview = taskObj.children.slice(0, 8).join('\n');
+            subSpan.textContent = preview + (taskObj.children.length > 8 ? '\n...' : '');
+            btn.appendChild(subSpan);
+        }
+    }
+
+    function editTask(taskObj, refreshBtnId) {
+        const modal = document.getElementById('editModal');
+        const textarea = document.getElementById('editTaskTextarea');
+        const saveBtn = document.getElementById('saveEditBtn');
+        const cancelBtn = document.getElementById('cancelEditBtn');
+        const title = modal.querySelector('h3');
+
+        // Ustawienie trybu Edycji
+        title.textContent = "Edycja zadania";
+        let fullText = taskObj.text;
+        if (taskObj.children && taskObj.children.length > 0) {
+            fullText += '\n' + taskObj.children.join('\n');
+        }
+        
+        textarea.value = fullText;
+        modal.style.display = 'flex'; 
+
+        saveBtn.onclick = function() {
+            const content = textarea.value;
+            const lines = content.split('\n');
+            
+            if (lines.length > 0 && lines[0].trim() !== "") {
+                taskObj.text = lines[0];
+                if (lines.length > 1) {
+                    taskObj.children = lines.slice(1);
+                } else {
+                    taskObj.children = [];
+                }
+                renderTaskInButton(refreshBtnId, taskObj);
+                modal.style.display = 'none';
+            } else {
+                alert("Zadanie nie może być puste!");
+            }
+        };
+
+        cancelBtn.onclick = function() {
+            modal.style.display = 'none';
+        };
+    }
+
+    // --- Wyświetlanie wyników dla Sortowania BINARNEGO ---
+    function showBinaryResults(sortedTasks) {
+      prepareResultContainer();
+      const container = document.getElementById('rankedTasks');
+      document.getElementById('copyGapButton').style.display = 'none'; 
+      
+      const ol = document.createElement('ol');
+      ol.className = 'result-list';
+
+      sortedTasks.forEach(taskObj => {
+        ol.appendChild(createTaskListItem(taskObj));
+      });
+      
+      container.appendChild(ol);
+      
+      bindCopyAction('copyButton', () => {
+          return sortedTasks.map(t => formatTaskForClipboard(t)).join('\n');
       });
     }
 
-    // Wyświetlenie posortowanej listy zadań
-    function showResults(sortedTasks) {
+    // --- Wyświetlanie wyników dla Sortowania KUBEŁKOWEGO ---
+    function showBucketResults(bucketArray) {
+        prepareResultContainer();
+        const container = document.getElementById('rankedTasks');
+        document.getElementById('copyGapButton').style.display = 'inline-block'; 
+        
+        const labels = ["PRIORYTET WYSOKI (High)", "PRIORYTET ŚREDNI (Mid)", "PRIORYTET NISKI (Low)"];
+        const styles = ["gh-high", "gh-mid", "gh-low"];
+        const mdHeaders = ["# PRIORYTET WYSOKI", "# PRIORYTET ŚREDNI", "# PRIORYTET NISKI"];
+
+        bucketArray.forEach((tasksInBucket, index) => {
+            if (tasksInBucket.length === 0) return;
+
+            const header = document.createElement('div');
+            header.className = `group-header ${styles[index]}`;
+            header.textContent = labels[index];
+            container.appendChild(header);
+
+            const ol = document.createElement('ol');
+            ol.className = 'result-list';
+            tasksInBucket.forEach(task => {
+                ol.appendChild(createTaskListItem(task));
+            });
+            container.appendChild(ol);
+        });
+
+        // 1. Konfiguracja przycisku standardowego (z Nagłówkami)
+        bindCopyAction('copyButton', () => {
+            let text = "";
+            bucketArray.forEach((tasksInBucket, index) => {
+                if (tasksInBucket.length === 0) return;
+                text += `\n${mdHeaders[index]}\n`; 
+                text += tasksInBucket.map(t => formatTaskForClipboard(t)).join('\n');
+                text += `\n`;
+            });
+            return text.trim();
+        });
+
+        // 2. Konfiguracja NOWEGO przycisku (z Przerwami)
+        bindCopyAction('copyGapButton', () => {
+            let text = "";
+            bucketArray.forEach((tasksInBucket) => {
+                if (tasksInBucket.length === 0) return;
+                text += tasksInBucket.map(t => formatTaskForClipboard(t)).join('\n');
+                text += `\n\n`;
+            });
+            return text.trim();
+        });
+    }
+
+    function prepareResultContainer() {
       document.getElementById('comparison').style.display = 'none';
+      document.getElementById('bucketSorter').style.display = 'none';
       document.getElementById('result').style.display = 'block';
-      const rankedTasksList = document.getElementById('rankedTasks');
-      rankedTasksList.innerHTML = '';
-      sortedTasks.forEach(taskObj => {
+      document.getElementById('rankedTasks').innerHTML = '';
+    }
+
+    function createTaskListItem(taskObj) {
         const li = document.createElement('li');
-        li.textContent = taskObj.text;
-        rankedTasksList.appendChild(li);
+        const mainText = document.createElement('strong');
+        mainText.textContent = taskObj.text;
+        li.appendChild(mainText);
+
+        if (taskObj.children && taskObj.children.length > 0) {
+            const childrenDiv = document.createElement('div');
+            childrenDiv.className = 'result-children';
+            childrenDiv.textContent = taskObj.children.join('\n');
+            li.appendChild(childrenDiv);
+        }
+        return li;
+    }
+
+    function formatTaskForClipboard(taskObj) {
+        let block = taskObj.text;
+        if (taskObj.children && taskObj.children.length > 0) block += '\n' + taskObj.children.join('\n');
+        return block;
+    }
+
+    function bindCopyAction(buttonId, getTextFunction) {
+      const oldBtn = document.getElementById(buttonId);
+      if(!oldBtn) return;
+
+      const newBtn = oldBtn.cloneNode(true); 
+      oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+
+      newBtn.addEventListener('click', () => {
+          const finalString = getTextFunction();
+          
+          navigator.clipboard.writeText(finalString).then(() => {
+              const originalText = newBtn.textContent;
+              const originalColor = newBtn.style.backgroundColor; 
+              
+              newBtn.textContent = "✅ Skopiowano!";
+              newBtn.style.backgroundColor = "#448844";
+              
+              setTimeout(() => {
+                  newBtn.textContent = originalText;
+                  newBtn.style.backgroundColor = originalColor; 
+              }, 2000);
+          });
       });
     }
   </script>
-
 </body>
 </html>

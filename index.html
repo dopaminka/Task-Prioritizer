@@ -651,6 +651,7 @@
             document.getElementById('editTaskB').onclick = () => editTask(taskB, 'taskBButton');
 
             document.onkeydown = (e) => {
+                if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
                 if (e.key === '1') handle({action: 'choose', chosen: 'current'});
                 if (e.key === '2') handle({action: 'choose', chosen: 'mid'});
                 if (e.key.toLowerCase() === 'c') handle({action: 'undo'});
@@ -739,6 +740,7 @@
             document.getElementById('editBucketTask').onclick = () => editTask(task, 'bucketTaskDisplay');
 
             document.onkeydown = (e) => {
+                if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
                 if (['1','2','3'].includes(e.key)) {
                     let idx = parseInt(e.key) - 1;
                     handle({ action: 'bucket', bucketIndex: idx });

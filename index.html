@@ -966,7 +966,7 @@
                 text += `\n`;
             });
             if (doneTasks.length > 0) {
-                text += `\n# ZROBIONE\n`;
+                text += `\n### ZROBIONE\n`;
                 text += doneTasks.map(t => formatTaskForClipboard(t)).join('\n');
             }
             return text.trim();

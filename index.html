@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Task Prioritizer v2.1</title>
+  <title>Task Prioritizer v2.3 - Done Mode</title>
   <link rel="icon" type="image/png" href="icon.png">
 
   <style>
@@ -135,8 +135,8 @@
         font-family: monospace;
     }
 
-    /* Przyciski edycji/usuwania */
-    .removeButton, .editButton {
+    /* Przyciski edycji/usuwania/zrobione */
+    .removeButton, .editButton, .doneButton {
       position: absolute;
       top: 4px;
       background: rgba(30,30,30, 0.8);
@@ -151,7 +151,14 @@
     .removeButton { right: 4px; color: #ff5555; }
     .editButton { left: 4px; color: #55aaff; }
     
-    .removeButton:hover, .editButton:hover { opacity: 1; background-color: #333; }
+    /* Nowy przycisk DONE */
+    .doneButton { 
+        right: 60px; /* Przesunięty w lewo od removeButton */
+        color: #55ff55; 
+        border-color: #2a5a2a;
+    }
+    
+    .removeButton:hover, .editButton:hover, .doneButton:hover { opacity: 1; background-color: #333; }
 
     /* Sekcja kubełków */
     .bucket-grid {
@@ -224,6 +231,7 @@
     .gh-high { border-color: #ff4444; color: #ffcccc; }
     .gh-mid  { border-color: #ffaa44; color: #ffddcc; }
     .gh-low  { border-color: #44ff44; color: #ccffcc; }
+    .gh-done { border-color: #55ff55; color: #ccffcc; border-left-style: dashed;}
 
     ol.result-list {
       padding-left: 25px;
@@ -234,6 +242,12 @@
       border-bottom: 1px solid #333;
       padding-bottom: 5px;
     }
+    /* Styl dla zrobionych w HTML */
+    li.task-done {
+        opacity: 0.6;
+        text-decoration: line-through;
+    }
+
     .result-children {
         font-family: monospace;
         color: #cccccc;
@@ -241,6 +255,7 @@
         display: block;
         margin-top: 4px;
         font-size: 0.9em;
+        text-decoration: none !important; /* Dzieci nie muszą być skreślone, albo wedle uznania */
     }
     #result { display: none; }
 
@@ -284,12 +299,26 @@
     }
     #saveEditBtn { background-color: #2a5a2a; }
     #cancelEditBtn { background-color: #552222; }
+    
+    /* NOWY PRZYCISK W MODALU - STYL */
+    #addBulletBtn { 
+        background-color: #336699; 
+        margin-right: auto; /* Przesuwa go na lewą stronę grupy */
+    }
+    #addBulletBtn:hover { background-color: #4477aa; }
+	
+	/* Zmiana wyglądu listy wyników */
+	ol.result-list li strong {
+    font-weight: normal;  /* Usuwa pogrubienie */
+    font-size: 0.9em;     /* Zmniejsza czcionkę (0.9em to 90% standardowej wielkości) */
+    line-height: 1.5;     /* Opcjonalnie: poprawia czytelność przy mniejszym tekście */
+}
 
   </style>
 </head>
 <body>
 
-  <h1>Task Prioritizer v2.1</h1>
+  <h1>Task Prioritizer v2.3</h1>
 
   <textarea id="taskInput" placeholder="Wklej listę zadań..."></textarea><br>
   
@@ -308,6 +337,9 @@
           <p style="font-size: 0.9em; color: #aaa;">Pierwsza linia to główny tytuł. Kolejne linie to podpunkty.</p>
           <textarea id="editTaskTextarea"></textarea>
           <div class="modal-buttons">
+              <!-- NOWY PRZYCISK -->
+              <button id="addBulletBtn">➕ Dodaj podpunkt</button>
+              
               <button id="cancelEditBtn">Anuluj</button>
               <button id="saveEditBtn">Zapisz zmiany</button>
           </div>
@@ -318,16 +350,17 @@
   <div id="comparison">
     <h2>Które zadanie jest ważniejsze?</h2>
     
-    <!-- Nowy kontener Flex do centrowania guzików -->
     <div class="binary-container-flex">
         <div class="taskContainer">
           <button id="editTaskA" class="editButton">✎ Edytuj</button>
+          <button id="doneTaskA" class="doneButton">✅ Zrobione</button>
           <button id="removeTaskA" class="removeButton">X Usuń</button>
           <button id="taskAButton" class="taskButton"></button>
         </div>
         
         <div class="taskContainer">
           <button id="editTaskB" class="editButton">✎ Edytuj</button>
+          <button id="doneTaskB" class="doneButton">✅ Zrobione</button>
           <button id="removeTaskB" class="removeButton">X Usuń</button>
           <button id="taskBButton" class="taskButton"></button>
         </div>
@@ -350,6 +383,7 @@
     
     <div class="taskContainer singleTaskContainer">
         <button id="editBucketTask" class="editButton">✎ Edytuj</button>
+        <button id="doneBucketTask" class="doneButton">✅ Zrobione</button>
         <button id="removeBucketTask" class="removeButton">X Usuń</button>
         <button id="bucketTaskDisplay" class="taskButton bucket-preview"></button>
     </div>
@@ -386,6 +420,7 @@
   <script>
     // --- Globalne zmienne ---
     let tasks = []; 
+    let doneTasks = []; // Nowa tablica na zrobione
     let decisionHistory = [];
     let decisionIndex = 0;
     let comparisonsMade = 0;
@@ -406,13 +441,13 @@
             const isIndented = line.match(/^\s/);
 
             if (!isIndented) {
-                currentBlock = { text: line, children: [] };
+                currentBlock = { text: line, children: [], isDone: false }; // dodana flaga isDone
                 blocks.push(currentBlock);
             } else {
                 if (currentBlock) {
                     currentBlock.children.push(line);
                 } else {
-                    currentBlock = { text: line, children: [] };
+                    currentBlock = { text: line, children: [], isDone: false };
                     blocks.push(currentBlock);
                 }
             }
@@ -436,7 +471,8 @@
         }
         tasks = parseTextToBlocks(taskInput.value);
         if (tasks.length < 1) return false;
-
+        
+        doneTasks = []; // Reset listy zrobionych
         document.getElementById('taskInput').style.display = 'none';
         document.getElementById('startButtonsContainer').style.display = 'none';
         return true;
@@ -479,7 +515,27 @@
     });
 
     // ==========================================
-    // === NOWA FUNKCJA: DODAWANIE W TRAKCIE ===
+    // === NOWA LOGIKA: DODAWANIE PODPUNKTU ===
+    // ==========================================
+    
+    document.getElementById('addBulletBtn').addEventListener('click', function() {
+        const textarea = document.getElementById('editTaskTextarea');
+        const currentVal = textarea.value;
+        
+        // Sprawdzamy czy na końcu jest nowa linia, jeśli nie to dodajemy
+        // Jeśli textarea jest puste, nie dodajemy nowej linii na początku
+        const prefix = (currentVal.length > 0 && !currentVal.endsWith('\n')) ? '\n' : '';
+        
+        // Dodajemy wcięcie (tabulator) i tekst
+        const textToAdd = prefix + "\t- ";
+        
+        textarea.value += textToAdd;
+        textarea.focus();
+    });
+
+
+    // ==========================================
+    // === DODAWANIE W TRAKCIE (MODAL) ===
     // ==========================================
 
     function showAddTaskModal() {
@@ -489,38 +545,29 @@
         const cancelBtn = document.getElementById('cancelEditBtn');
         const title = modal.querySelector('h3');
 
-        // Reset UI
         textarea.value = '';
         title.textContent = "Dodaj nowe zadanie (na koniec kolejki)";
         modal.style.display = 'flex';
 
-        // Logika zapisu nowego zadania
         saveBtn.onclick = function() {
             const content = textarea.value;
             const lines = content.split('\n');
             
             if (lines.length > 0 && lines[0].trim() !== "") {
-                const newTask = { text: lines[0], children: [] };
+                const newTask = { text: lines[0], children: [], isDone: false };
                 if (lines.length > 1) {
                     newTask.children = lines.slice(1);
                 }
                 
-                // Dodaj do głównej tablicy.
-                // Pętle sortowania (for/while) sprawdzają tasks.length dynamicznie,
-                // więc nowe zadanie zostanie automatycznie uwzględnione.
                 tasks.push(newTask);
                 
-                // Aktualizacja liczników UI zależnie od aktywnego trybu
                 if (document.getElementById('comparison').style.display === 'block') {
-                    // Tryb Binarny: dodajemy przybliżony koszt logarytmiczny do licznika
                     remainingExpectedComparisons += Math.ceil(Math.log2(tasks.length)); 
                     updateBinaryProgress();
                 } 
                 else if (document.getElementById('bucketSorter').style.display === 'block') {
-                    // Tryb Kubełkowy: aktualizujemy tylko tekst "z Y"
                     const bucketProgress = document.getElementById('bucketProgress');
                     let currentText = bucketProgress.textContent;
-                    // Wyciągnij obecny numer zadania (np. "Zadanie 5 z 10")
                     let match = currentText.match(/Zadanie (\d+)/);
                     if (match) {
                         let currentIndex = parseInt(match[1]) - 1;
@@ -560,7 +607,6 @@
         
         decisionIndex = 0;
         comparisonsMade = 0;
-        
         remainingExpectedComparisons = 0;
         for (let i = 1; i < tasks.length; i++) remainingExpectedComparisons += Math.ceil(Math.log2(i + 1));
         updateBinaryProgress();
@@ -568,12 +614,8 @@
         let sorted = [tasks[0]];
 
         try {
-            // Pętla sprawdza tasks.length dynamicznie. 
-            // Jeśli w trakcie dodamy zadanie, loop pójdzie dalej.
             for (let i = 1; i < tasks.length; i++) {
                 remainingExpectedComparisons -= Math.ceil(Math.log2(sorted.length + 1));
-                // Jeśli dodaliśmy nowe zadanie w trakcie, remainingExpectedComparisons może być nieprecyzyjne,
-                // ale updateBinaryProgress wyświetli poprawny stan.
                 
                 let insertIndex = await binarySearchInsertIndex(sorted, tasks[i]);
                 if (insertIndex !== null) {
@@ -593,6 +635,10 @@
 
     async function binarySearchInsertIndex(sortedList, task) {
         let low = 0, high = sortedList.length;
+        
+        // Sprawdzenie na wejściu czy task nie był już "zrobiony" wcześniej (teoretycznie niemozliwe w petli glownej, ale dobre dla bezpieczenstwa)
+        if (task.isDone) return null;
+
         while (low < high) {
             let mid = Math.floor((low + high) / 2);
             comparisonsMade++;
@@ -625,6 +671,21 @@
                     continue;
                 }
             } 
+            // OBSŁUGA ZROBIONE
+            else if (decision.action === 'markDone') {
+                 if (decision.chosen === 'current') {
+                     task.isDone = true;
+                     doneTasks.push(task);
+                     return null; // Przerywamy szukanie dla tego taska
+                 } else if (decision.chosen === 'mid') {
+                     let midTask = sortedList[mid];
+                     midTask.isDone = true;
+                     doneTasks.push(midTask);
+                     sortedList.splice(mid, 1);
+                     high = sortedList.length; // lista się skurczyła
+                     continue;
+                 }
+            }
             else if (decision.action === 'choose') {
                 if (decision.chosen === 'current') high = mid; 
                 else low = mid + 1;
@@ -643,8 +704,14 @@
             
             document.getElementById('taskAButton').onclick = () => handle({action: 'choose', chosen: 'current'});
             document.getElementById('taskBButton').onclick = () => handle({action: 'choose', chosen: 'mid'});
+            
             document.getElementById('removeTaskA').onclick = () => handle({action: 'remove', chosen: 'current'});
             document.getElementById('removeTaskB').onclick = () => handle({action: 'remove', chosen: 'mid'});
+            
+            // Obsługa Done
+            document.getElementById('doneTaskA').onclick = () => handle({action: 'markDone', chosen: 'current'});
+            document.getElementById('doneTaskB').onclick = () => handle({action: 'markDone', chosen: 'mid'});
+
             document.getElementById('undoButtonBinary').onclick = () => handle({action: 'undo'});
             
             document.getElementById('editTaskA').onclick = () => editTask(taskA, 'taskAButton');
@@ -667,7 +734,6 @@
     }
 
     function updateBinaryProgress() {
-        // Wyświetlamy aktualny stan
         document.getElementById('progress').textContent = `Porównanie ${comparisonsMade} z ok. ${Math.max(comparisonsMade, comparisonsMade + remainingExpectedComparisons)}`;
     }
 
@@ -689,7 +755,6 @@
         bucketHistory = [];
         let i = 0;
 
-        // Używamy while, aby reagować na zmianę tasks.length w locie
         while (i < tasks.length) {
             const task = tasks[i];
             updateBucketProgress(i, tasks.length);
@@ -700,16 +765,27 @@
                 if (i > 0) {
                     i--; 
                     const lastOp = bucketHistory.pop();
-                    if (lastOp && lastOp.bucketIndex !== -1) {
-                        buckets[lastOp.bucketIndex].pop();
+                    if (lastOp) {
+                        if (lastOp.type === 'bucket') {
+                            buckets[lastOp.bucketIndex].pop();
+                        } else if (lastOp.type === 'done') {
+                            doneTasks.pop();
+                            task.isDone = false; // przywracamy stan
+                        }
+                        // remove nic nie robił z danymi, po prostu skipowal
                     }
                 }
             } else if (decision.action === 'remove') {
-                bucketHistory.push({ taskIndex: i, bucketIndex: -1 }); 
+                bucketHistory.push({ type: 'remove' }); 
+                i++;
+            } else if (decision.action === 'markDone') {
+                task.isDone = true;
+                doneTasks.push(task);
+                bucketHistory.push({ type: 'done' });
                 i++;
             } else if (decision.action === 'bucket') {
                 buckets[decision.bucketIndex].push(task);
-                bucketHistory.push({ taskIndex: i, bucketIndex: decision.bucketIndex });
+                bucketHistory.push({ type: 'bucket', bucketIndex: decision.bucketIndex });
                 i++;
             }
         }
@@ -736,6 +812,8 @@
             });
 
             document.getElementById('removeBucketTask').onclick = () => handle({ action: 'remove' });
+            document.getElementById('doneBucketTask').onclick = () => handle({ action: 'markDone' });
+            
             document.getElementById('undoButtonBucket').onclick = () => handle({ action: 'undo' });
             document.getElementById('editBucketTask').onclick = () => editTask(task, 'bucketTaskDisplay');
 
@@ -784,7 +862,6 @@
         const cancelBtn = document.getElementById('cancelEditBtn');
         const title = modal.querySelector('h3');
 
-        // Ustawienie trybu Edycji
         title.textContent = "Edycja zadania";
         let fullText = taskObj.text;
         if (taskObj.children && taskObj.children.length > 0) {
@@ -823,17 +900,27 @@
       const container = document.getElementById('rankedTasks');
       document.getElementById('copyGapButton').style.display = 'none'; 
       
-      const ol = document.createElement('ol');
-      ol.className = 'result-list';
+      // 1. Aktywne zadania
+      if (sortedTasks.length > 0) {
+          const ol = document.createElement('ol');
+          ol.className = 'result-list';
+          sortedTasks.forEach(taskObj => {
+            ol.appendChild(createTaskListItem(taskObj));
+          });
+          container.appendChild(ol);
+      }
 
-      sortedTasks.forEach(taskObj => {
-        ol.appendChild(createTaskListItem(taskObj));
-      });
-      
-      container.appendChild(ol);
+      // 2. Zadania zrobione
+      if (doneTasks.length > 0) {
+          renderDoneTasks(container);
+      }
       
       bindCopyAction('copyButton', () => {
-          return sortedTasks.map(t => formatTaskForClipboard(t)).join('\n');
+          let text = sortedTasks.map(t => formatTaskForClipboard(t)).join('\n');
+          if (doneTasks.length > 0) {
+              text += '\n\n' + doneTasks.map(t => formatTaskForClipboard(t)).join('\n');
+          }
+          return text.trim();
       });
     }
 
@@ -845,8 +932,9 @@
         
         const labels = ["PRIORYTET WYSOKI (High)", "PRIORYTET ŚREDNI (Mid)", "PRIORYTET NISKI (Low)"];
         const styles = ["gh-high", "gh-mid", "gh-low"];
-        const mdHeaders = ["# PRIORYTET WYSOKI", "# PRIORYTET ŚREDNI", "# PRIORYTET NISKI"];
+        const mdHeaders = ["### PRIORYTET WYSOKI", "### PRIORYTET ŚREDNI", "### PRIORYTET NISKI"];
 
+        // 1. Kubełki
         bucketArray.forEach((tasksInBucket, index) => {
             if (tasksInBucket.length === 0) return;
 
@@ -863,7 +951,12 @@
             container.appendChild(ol);
         });
 
-        // 1. Konfiguracja przycisku standardowego (z Nagłówkami)
+        // 2. Sekcja Zrobione (jeśli są)
+        if (doneTasks.length > 0) {
+            renderDoneTasks(container);
+        }
+
+        // Kopiowanie z nagłówkami
         bindCopyAction('copyButton', () => {
             let text = "";
             bucketArray.forEach((tasksInBucket, index) => {
@@ -872,10 +965,14 @@
                 text += tasksInBucket.map(t => formatTaskForClipboard(t)).join('\n');
                 text += `\n`;
             });
+            if (doneTasks.length > 0) {
+                text += `\n# ZROBIONE\n`;
+                text += doneTasks.map(t => formatTaskForClipboard(t)).join('\n');
+            }
             return text.trim();
         });
 
-        // 2. Konfiguracja NOWEGO przycisku (z Przerwami)
+        // Kopiowanie z przerwami
         bindCopyAction('copyGapButton', () => {
             let text = "";
             bucketArray.forEach((tasksInBucket) => {
@@ -883,8 +980,26 @@
                 text += tasksInBucket.map(t => formatTaskForClipboard(t)).join('\n');
                 text += `\n\n`;
             });
+            if (doneTasks.length > 0) {
+                text += doneTasks.map(t => formatTaskForClipboard(t)).join('\n');
+            }
             return text.trim();
         });
+    }
+    
+    // Pomocnicza do renderowania sekcji Zrobione
+    function renderDoneTasks(container) {
+        const header = document.createElement('div');
+        header.className = `group-header gh-done`;
+        header.textContent = "ZROBIONE";
+        container.appendChild(header);
+        
+        const ol = document.createElement('ol');
+        ol.className = 'result-list';
+        doneTasks.forEach(task => {
+            ol.appendChild(createTaskListItem(task));
+        });
+        container.appendChild(ol);
     }
 
     function prepareResultContainer() {
@@ -896,8 +1011,14 @@
 
     function createTaskListItem(taskObj) {
         const li = document.createElement('li');
+        if (taskObj.isDone) {
+            li.className = 'task-done';
+        }
+        
         const mainText = document.createElement('strong');
-        mainText.textContent = taskObj.text;
+        // Dodaj prefix wizualnie dla zrobionych? Możemy, ale CSS już skreśla.
+        // Jeśli chcemy widzieć checkbox w HTML:
+        mainText.textContent = (taskObj.isDone ? "[x] " : "") + taskObj.text;
         li.appendChild(mainText);
 
         if (taskObj.children && taskObj.children.length > 0) {
@@ -910,7 +1031,10 @@
     }
 
     function formatTaskForClipboard(taskObj) {
-        let block = taskObj.text;
+        // Główna zmiana: dodanie "- [x] " jeśli isDone jest true
+        let prefix = taskObj.isDone ? "- [x] " : "";
+        
+        let block = prefix + taskObj.text;
         if (taskObj.children && taskObj.children.length > 0) block += '\n' + taskObj.children.join('\n');
         return block;
     }

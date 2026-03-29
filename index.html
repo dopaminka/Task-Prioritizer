@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Task Prioritizer v2.3</title>
+  <title>Task Prioritizer v2.4 - Tournament Edition</title>
   <link rel="icon" type="image/png" href="icon.png">
 
   <style>
@@ -57,6 +57,8 @@
     #copyGapButton:hover { background-color: #3a5a6a; }
 
     /* Nowe przyciski startowe */
+    #btnTournament { background-color: #aa5533; }
+    #btnTournament:hover { background-color: #cc6644; }
     #btnBinary { background-color: #334455; }
     #btnBinary:hover { background-color: #445566; }
     #btnBucket { background-color: #554433; }
@@ -65,7 +67,7 @@
     #flattenButton:hover { background-color: #8844bb; }
 
     /* Kontenery trybów */
-    #comparison, #bucketSorter {
+    #comparison, #bucketSorter, #tournamentMode {
       display: none;
       margin-top: 20px;
     }
@@ -150,13 +152,7 @@
     }
     .removeButton { right: 4px; color: #ff5555; }
     .editButton { left: 4px; color: #55aaff; }
-    
-    /* Nowy przycisk DONE */
-    .doneButton { 
-        right: 60px; /* Przesunięty w lewo od removeButton */
-        color: #55ff55; 
-        border-color: #2a5a2a;
-    }
+    .doneButton { right: 60px; color: #55ff55; border-color: #2a5a2a; }
     
     .removeButton:hover, .editButton:hover, .doneButton:hover { opacity: 1; background-color: #333; }
 
@@ -186,13 +182,12 @@
     .b-low:hover  { background-color: #1a3a1a; }
 
     /* Przyciski kontrolne */
-    #undoButton, #undoButtonBinary, #undoButtonBucket {
+    #undoButtonBinary, #undoButtonBucket, #undoButtonTournament {
       margin-top: 20px;
       background-color: #555555;
       padding: 8px 25px;
     }
     
-    /* NOWY PRZYCISK DODAWANIA */
     .addNewButton {
         margin-top: 20px;
         margin-left: 10px;
@@ -200,9 +195,7 @@
         padding: 8px 20px;
         border: 1px solid #444;
     }
-    .addNewButton:hover {
-        background-color: #3a6a3a;
-    }
+    .addNewButton:hover { background-color: #3a6a3a; }
 
     #progress, .lessImportant {
       margin-top: 15px;
@@ -228,9 +221,10 @@
         border-left: 6px solid #555;
         border-radius: 0 4px 4px 0;
     }
-    .gh-high { border-color: #ff4444; color: #ffcccc; }
-    .gh-mid  { border-color: #ffaa44; color: #ffddcc; }
-    .gh-low  { border-color: #44ff44; color: #ccffcc; }
+    .gh-high { border-color: #ffaa00; color: #ffddaa; } /* Złoto/1. Miejsce */
+    .gh-mid  { border-color: #aaaaaa; color: #dddddd; } /* Srebro/2. Miejsce */
+    .gh-low  { border-color: #cd7f32; color: #eebb99; } /* Brąz/3. Miejsce */
+    .gh-loser { border-color: #666666; color: #aaaaaa; } /* Odpadli */
     .gh-done { border-color: #55ff55; color: #ccffcc; border-left-style: dashed;}
 
     ol.result-list {
@@ -242,7 +236,6 @@
       border-bottom: 1px solid #333;
       padding-bottom: 5px;
     }
-    /* Styl dla zrobionych w HTML */
     li.task-done {
         opacity: 0.6;
         text-decoration: line-through;
@@ -255,11 +248,16 @@
         display: block;
         margin-top: 4px;
         font-size: 0.9em;
-        text-decoration: none !important; /* Dzieci nie muszą być skreślone, albo wedle uznania */
     }
     #result { display: none; }
 
-    /* --- MODAL EDYCJI --- */
+    ol.result-list li strong {
+        font-weight: normal;  
+        font-size: 0.9em;     
+        line-height: 1.5;     
+    }
+
+    /* Modale */
     .modal-overlay {
         display: none; 
         position: fixed;
@@ -299,30 +297,18 @@
     }
     #saveEditBtn { background-color: #2a5a2a; }
     #cancelEditBtn { background-color: #552222; }
-    
-    /* NOWY PRZYCISK W MODALU - STYL */
-    #addBulletBtn { 
-        background-color: #336699; 
-        margin-right: auto; /* Przesuwa go na lewą stronę grupy */
-    }
+    #addBulletBtn { background-color: #336699; margin-right: auto; }
     #addBulletBtn:hover { background-color: #4477aa; }
-	
-	/* Zmiana wyglądu listy wyników */
-	ol.result-list li strong {
-    font-weight: normal;  /* Usuwa pogrubienie */
-    font-size: 0.9em;     /* Zmniejsza czcionkę (0.9em to 90% standardowej wielkości) */
-    line-height: 1.5;     /* Opcjonalnie: poprawia czytelność przy mniejszym tekście */
-}
-
   </style>
 </head>
 <body>
 
-  <h1>Task Prioritizer v2.3</h1>
+  <h1>Task Prioritizer v2.4</h1>
 
   <textarea id="taskInput" placeholder="Wklej listę zadań..."></textarea><br>
   
   <div class="buttons-container" id="startButtonsContainer">
+      <button id="btnTournament">Sortowanie Pucharowe (Turniej)</button>
       <button id="btnBucket">Sortowanie Kubełkowe (Szybkie)</button>
       <button id="btnBinary">Sortowanie Binarne (Dokładne)</button>
       <button id="cleanButton">Oczyść puste linie</button>
@@ -337,19 +323,47 @@
           <p style="font-size: 0.9em; color: #aaa;">Pierwsza linia to główny tytuł. Kolejne linie to podpunkty.</p>
           <textarea id="editTaskTextarea"></textarea>
           <div class="modal-buttons">
-              <!-- NOWY PRZYCISK -->
               <button id="addBulletBtn">➕ Dodaj podpunkt</button>
-              
               <button id="cancelEditBtn">Anuluj</button>
               <button id="saveEditBtn">Zapisz zmiany</button>
           </div>
       </div>
   </div>
 
+  <!-- TRYB PUCHAROWY (TURNIEJ) -->
+  <div id="tournamentMode">
+    <h2>Faza turnieju: <span id="tournamentRoundLabel" style="color:#ffaa00"></span></h2>
+    
+    <div class="binary-container-flex">
+        <div class="taskContainer">
+          <button id="editTaskTA" class="editButton">✎ Edytuj</button>
+          <button id="doneTaskTA" class="doneButton">✅ Zrobione</button>
+          <button id="removeTaskTA" class="removeButton">X Usuń</button>
+          <button id="taskTAButton" class="taskButton"></button>
+        </div>
+        
+        <div class="taskContainer">
+          <button id="editTaskTB" class="editButton">✎ Edytuj</button>
+          <button id="doneTaskTB" class="doneButton">✅ Zrobione</button>
+          <button id="removeTaskTB" class="removeButton">X Usuń</button>
+          <button id="taskTBButton" class="taskButton"></button>
+        </div>
+    </div>
+
+    <p id="tournamentProgress" class="lessImportant"></p>
+    <p class="lessImportant">
+      Klawisze: <strong>1</strong> (Lewe), <strong>2</strong> (Prawe), <strong>C</strong> (Cofnij).
+    </p>
+    
+    <div class="buttons-container">
+        <button id="undoButtonTournament">Cofnij</button>
+        <button id="addTaskTournament" class="addNewButton">➕ Dodaj nowe zadanie</button>
+    </div>
+  </div>
+
   <!-- TRYB BINARNY -->
   <div id="comparison">
     <h2>Które zadanie jest ważniejsze?</h2>
-    
     <div class="binary-container-flex">
         <div class="taskContainer">
           <button id="editTaskA" class="editButton">✎ Edytuj</button>
@@ -357,7 +371,6 @@
           <button id="removeTaskA" class="removeButton">X Usuń</button>
           <button id="taskAButton" class="taskButton"></button>
         </div>
-        
         <div class="taskContainer">
           <button id="editTaskB" class="editButton">✎ Edytuj</button>
           <button id="doneTaskB" class="doneButton">✅ Zrobione</button>
@@ -365,12 +378,10 @@
           <button id="taskBButton" class="taskButton"></button>
         </div>
     </div>
-
     <p id="progress" class="lessImportant"></p>
     <p class="lessImportant">
       Klawisze: <strong>1</strong> (Lewe), <strong>2</strong> (Prawe), <strong>C</strong> (Cofnij).
     </p>
-    
     <div class="buttons-container">
         <button id="undoButtonBinary">Cofnij</button>
         <button id="addTaskBinary" class="addNewButton">➕ Dodaj nowe zadanie</button>
@@ -380,36 +391,31 @@
   <!-- TRYB KUBEŁKOWY -->
   <div id="bucketSorter">
     <h2>Przypisz priorytet zadaniu:</h2>
-    
     <div class="taskContainer singleTaskContainer">
         <button id="editBucketTask" class="editButton">✎ Edytuj</button>
         <button id="doneBucketTask" class="doneButton">✅ Zrobione</button>
         <button id="removeBucketTask" class="removeButton">X Usuń</button>
         <button id="bucketTaskDisplay" class="taskButton bucket-preview"></button>
     </div>
-
     <div class="bucket-grid">
         <button class="bucket-btn b-high" data-bucket="0">1. Wysoki (High)</button>
         <button class="bucket-btn b-mid" data-bucket="1">2. Średni (Mid)</button>
         <button class="bucket-btn b-low" data-bucket="2">3. Niski (Low)</button>
     </div>
-
     <p id="bucketProgress" class="lessImportant"></p>
     <p class="lessImportant">
-        Klawisze: <strong>1</strong> (High), <strong>2</strong> (Mid), <strong>3</strong> (Low), <strong>C</strong> (Cofnij).
+        Klawisze: <strong>1</strong>, <strong>2</strong>, <strong>3</strong>, <strong>C</strong> (Cofnij).
     </p>
-    
     <div class="buttons-container">
         <button id="undoButtonBucket">Cofnij</button>
         <button id="addTaskBucket" class="addNewButton">➕ Dodaj nowe zadanie</button>
     </div>
   </div>
 
-  <!-- WYNIK -->
+  <!-- WYNIKI -->
   <div id="result">
-    <h2>Zadania posortowane według ważności:</h2>
+    <h2>Wyniki priorytetyzacji:</h2>
     <div id="rankedTasks"></div>
-    
     <div class="buttons-container">
         <button id="copyButton">📋 Kopiuj</button>
         <button id="copyGapButton">📑 Kopiuj (bez nagłówków)</button> 
@@ -420,15 +426,30 @@
   <script>
     // --- Globalne zmienne ---
     let tasks = []; 
-    let doneTasks = []; // Nowa tablica na zrobione
+    let doneTasks = []; 
+    
+    // Zmienne binarne
     let decisionHistory = [];
     let decisionIndex = 0;
     let comparisonsMade = 0;
     let remainingExpectedComparisons = 0;
-    let currentResolve = null; 
-
+    
+    // Zmienne kubełkowe
     let buckets = [[], [], []]; 
     let bucketHistory = []; 
+
+    // Zmienne Turniejowe (Knockout)
+    let tQueue = [];
+    let tNext = [];
+    let tLosers = []; // tablica tablic na podstawie rundy
+    let tRoundIndex = 0;
+    let tHistory = [];
+    let tThirdPlaceState = 0; // 0 - nie doszliśmy, 1 - gra w toku, 2 - zrobione
+    let tMatchesMade = 0;
+    let tFirstPlace = null;
+    let tSecondPlace = null;
+    let tThirdPlace = null;
+    let tFourthPlace = null;
     
     // --- PARSOWANIE ---
     function parseTextToBlocks(text) {
@@ -441,7 +462,7 @@
             const isIndented = line.match(/^\s/);
 
             if (!isIndented) {
-                currentBlock = { text: line, children: [], isDone: false }; // dodana flaga isDone
+                currentBlock = { text: line, children: [], isDone: false };
                 blocks.push(currentBlock);
             } else {
                 if (currentBlock) {
@@ -472,7 +493,7 @@
         tasks = parseTextToBlocks(taskInput.value);
         if (tasks.length < 1) return false;
         
-        doneTasks = []; // Reset listy zrobionych
+        doneTasks = []; 
         document.getElementById('taskInput').style.display = 'none';
         document.getElementById('startButtonsContainer').style.display = 'none';
         return true;
@@ -497,7 +518,7 @@
       });
 
       if (!foundIndented && t.value.trim().length > 0) {
-          alert("Nie znaleziono wciętych podpunktów do awansowania (brak wcięć w tekście).");
+          alert("Nie znaleziono wciętych podpunktów do awansowania.");
       } else {
           t.value = newLines.join('\n');
       }
@@ -514,29 +535,13 @@
       t.value = blocksToText(b);
     });
 
-    // ==========================================
-    // === NOWA LOGIKA: DODAWANIE PODPUNKTU ===
-    // ==========================================
-    
     document.getElementById('addBulletBtn').addEventListener('click', function() {
         const textarea = document.getElementById('editTaskTextarea');
         const currentVal = textarea.value;
-        
-        // Sprawdzamy czy na końcu jest nowa linia, jeśli nie to dodajemy
-        // Jeśli textarea jest puste, nie dodajemy nowej linii na początku
         const prefix = (currentVal.length > 0 && !currentVal.endsWith('\n')) ? '\n' : '';
-        
-        // Dodajemy wcięcie (tabulator) i tekst
-        const textToAdd = prefix + "\t- ";
-        
-        textarea.value += textToAdd;
+        textarea.value += prefix + "\t- ";
         textarea.focus();
     });
-
-
-    // ==========================================
-    // === DODAWANIE W TRAKCIE (MODAL) ===
-    // ==========================================
 
     function showAddTaskModal() {
         const modal = document.getElementById('editModal');
@@ -546,7 +551,7 @@
         const title = modal.querySelector('h3');
 
         textarea.value = '';
-        title.textContent = "Dodaj nowe zadanie (na koniec kolejki)";
+        title.textContent = "Dodaj nowe zadanie";
         modal.style.display = 'flex';
 
         saveBtn.onclick = function() {
@@ -555,40 +560,258 @@
             
             if (lines.length > 0 && lines[0].trim() !== "") {
                 const newTask = { text: lines[0], children: [], isDone: false };
-                if (lines.length > 1) {
-                    newTask.children = lines.slice(1);
-                }
+                if (lines.length > 1) newTask.children = lines.slice(1);
                 
                 tasks.push(newTask);
                 
                 if (document.getElementById('comparison').style.display === 'block') {
                     remainingExpectedComparisons += Math.ceil(Math.log2(tasks.length)); 
                     updateBinaryProgress();
-                } 
-                else if (document.getElementById('bucketSorter').style.display === 'block') {
-                    const bucketProgress = document.getElementById('bucketProgress');
-                    let currentText = bucketProgress.textContent;
-                    let match = currentText.match(/Zadanie (\d+)/);
-                    if (match) {
-                        let currentIndex = parseInt(match[1]) - 1;
-                        updateBucketProgress(currentIndex, tasks.length);
-                    }
+                } else if (document.getElementById('bucketSorter').style.display === 'block') {
+                    const match = document.getElementById('bucketProgress').textContent.match(/Zadanie (\d+)/);
+                    if (match) updateBucketProgress(parseInt(match[1]) - 1, tasks.length);
+                } else if (document.getElementById('tournamentMode').style.display === 'block') {
+                    tQueue.push(newTask); // trafia do obecnej rundy turnieju
                 }
-
                 modal.style.display = 'none';
             } else {
                 alert("Zadanie nie może być puste!");
             }
         };
 
-        cancelBtn.onclick = function() {
-            modal.style.display = 'none';
-        };
+        cancelBtn.onclick = () => modal.style.display = 'none';
     }
 
     document.getElementById('addTaskBinary').addEventListener('click', showAddTaskModal);
     document.getElementById('addTaskBucket').addEventListener('click', showAddTaskModal);
+    document.getElementById('addTaskTournament').addEventListener('click', showAddTaskModal);
 
+    // ==========================================
+    // === TRYB 0: SORTOWANIE PUCHAROWE (NOWE) ===
+    // ==========================================
+
+    document.getElementById('btnTournament').addEventListener('click', function() {
+        if (!prepareTasks()) return;
+        if (tasks.length < 2) { alert("Potrzeba min. 2 zadań do turnieju."); location.reload(); return; }
+        runTournamentSort();
+    });
+
+    async function runTournamentSort() {
+        document.getElementById('tournamentMode').style.display = 'block';
+        doneTasks = [];
+        tasks.forEach(t => t.isDone = false);
+        
+        tQueue = [...tasks];
+        tNext = [];
+        tLosers = [];
+        tRoundIndex = 0;
+        tHistory = [];
+        tThirdPlaceState = 0;
+        tMatchesMade = 0;
+
+        try {
+            while (true) {
+                updateTournamentProgress();
+
+                // Mecz o 3 miejsce
+                if (tThirdPlaceState === 1) {
+                    let a = tQueue[0];
+                    let b = tQueue[1];
+                    saveTournamentState();
+                    let dec = await showTournamentDecision(a, b, "🏅 Mecz o 3. miejsce");
+                    if (dec.action === 'undo') { handleTournamentUndo(); continue; }
+                    
+                    if (dec.action === 'markDone' || dec.action === 'remove') {
+                         let removed = dec.chosen === 'A' ? a : b;
+                         let winner = dec.chosen === 'A' ? b : a;
+                         if (dec.action === 'markDone') { removed.isDone = true; doneTasks.push(removed); }
+                         tThirdPlace = winner; 
+                         tFourthPlace = removed;
+                    } else {
+                         if (dec.chosen === 'A') { tThirdPlace = a; tFourthPlace = b; }
+                         else { tThirdPlace = b; tFourthPlace = a; }
+                    }
+                    tThirdPlaceState = 2;
+                    break; 
+                }
+
+                // Normalne mecze pucharowe
+                if (tQueue.length >= 2) {
+                    let a = tQueue[0];
+                    let b = tQueue[1];
+                    saveTournamentState();
+                    
+                    let playersLeft = tQueue.length + tNext.length;
+                    let roundName = getRoundName(playersLeft);
+                    let dec = await showTournamentDecision(a, b, roundName);
+
+                    if (dec.action === 'undo') { handleTournamentUndo(); continue; }
+
+                    if (dec.action === 'remove' || dec.action === 'markDone') {
+                        let removedTask = dec.chosen === 'A' ? a : b;
+                        let winnerTask = dec.chosen === 'A' ? b : a;
+                        if (dec.action === 'markDone') {
+                            removedTask.isDone = true;
+                            doneTasks.push(removedTask);
+                        }
+                        tNext.push(winnerTask);
+                        tQueue.splice(0, 2);
+                    } else {
+                        let winner = dec.chosen === 'A' ? a : b;
+                        let loser = dec.chosen === 'A' ? b : a;
+                        tNext.push(winner);
+                        if (!tLosers[tRoundIndex]) tLosers[tRoundIndex] = [];
+                        tLosers[tRoundIndex].push(loser);
+                        tQueue.splice(0, 2);
+                    }
+                    tMatchesMade++;
+                } 
+                else if (tQueue.length === 1) {
+                    // Wolny los (BYE)
+                    tNext.push(tQueue[0]);
+                    tQueue = [];
+                }
+
+                // Koniec rundy
+                if (tQueue.length === 0) {
+                    if (tNext.length === 1) {
+                        tFirstPlace = tNext[0];
+                        
+                        // Ustalenie drugiego miejsca (osoba która przegrała w finale)
+                        if (tLosers[tRoundIndex] && tLosers[tRoundIndex].length === 1) {
+                            tSecondPlace = tLosers[tRoundIndex][0];
+                        } else if (tLosers[tRoundIndex-1] && tLosers[tRoundIndex-1].length === 1) {
+                            tSecondPlace = tLosers[tRoundIndex-1][0];
+                        }
+
+                        // Sprawdzenie czy mamy 3 miejsce do rozegrania
+                        let semiLosers = tLosers[tRoundIndex - 1] || [];
+                        if (semiLosers.length === 2) {
+                            tThirdPlaceState = 1;
+                            tQueue = [...semiLosers];
+                        } else if (semiLosers.length === 1) {
+                            tThirdPlace = semiLosers[0];
+                            break;
+                        } else {
+                            break;
+                        }
+                    } else {
+                        tQueue = tNext;
+                        tNext = [];
+                        tRoundIndex++;
+                    }
+                }
+            }
+            generateTournamentResults();
+
+        } catch(e) { console.error(e); }
+    }
+
+    function showTournamentDecision(taskA, taskB, roundName) {
+        return new Promise(resolve => {
+            document.getElementById('tournamentRoundLabel').textContent = roundName;
+            renderTaskInButton('taskTAButton', taskA);
+            renderTaskInButton('taskTBButton', taskB);
+
+            const handle = (res) => { 
+                document.onkeydown = null;
+                document.getElementById('taskTAButton').onclick = null;
+                document.getElementById('taskTBButton').onclick = null;
+                resolve(res); 
+            };
+
+            document.getElementById('taskTAButton').onclick = () => handle({action: 'choose', chosen: 'A'});
+            document.getElementById('taskTBButton').onclick = () => handle({action: 'choose', chosen: 'B'});
+            document.getElementById('removeTaskTA').onclick = () => handle({action: 'remove', chosen: 'A'});
+            document.getElementById('removeTaskTB').onclick = () => handle({action: 'remove', chosen: 'B'});
+            document.getElementById('doneTaskTA').onclick = () => handle({action: 'markDone', chosen: 'A'});
+            document.getElementById('doneTaskTB').onclick = () => handle({action: 'markDone', chosen: 'B'});
+            document.getElementById('undoButtonTournament').onclick = () => handle({action: 'undo'});
+
+            document.getElementById('editTaskTA').onclick = () => editTask(taskA, 'taskTAButton');
+            document.getElementById('editTaskTB').onclick = () => editTask(taskB, 'taskTBButton');
+
+            document.onkeydown = (e) => {
+                if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+                if (e.key === '1') handle({action: 'choose', chosen: 'A'});
+                if (e.key === '2') handle({action: 'choose', chosen: 'B'});
+                if (e.key.toLowerCase() === 'c') handle({action: 'undo'});
+            };
+        });
+    }
+
+    function saveTournamentState() {
+        tHistory.push({
+            queue: [...tQueue],
+            next: [...tNext],
+            losers: tLosers.map(arr => [...arr]),
+            roundIndex: tRoundIndex,
+            thirdPlaceState: tThirdPlaceState,
+            matchesMade: tMatchesMade,
+            doneCount: doneTasks.length
+        });
+    }
+
+    function handleTournamentUndo() {
+        if (tHistory.length <= 1) return;
+        tHistory.pop(); // usuń bieżący zapisany stan
+        let s = tHistory.pop(); // pobierz poprzedni stan
+        
+        tQueue = [...s.queue];
+        tNext = [...s.next];
+        tLosers = s.losers.map(arr => [...arr]);
+        tRoundIndex = s.roundIndex;
+        tThirdPlaceState = s.thirdPlaceState;
+        tMatchesMade = s.matchesMade;
+        
+        tFirstPlace = null;
+        tSecondPlace = null;
+        tThirdPlace = null;
+        tFourthPlace = null;
+        
+        while (doneTasks.length > s.doneCount) {
+            let t = doneTasks.pop();
+            t.isDone = false;
+        }
+    }
+
+    function updateTournamentProgress() {
+        let maxApprox = tasks.filter(t => !t.isDone).length;
+        document.getElementById('tournamentProgress').textContent = `Mecz: ${tMatchesMade + 1} z około ${maxApprox}`;
+    }
+
+    function getRoundName(playersLeft) {
+        if (playersLeft <= 2) return "🏆 Finał";
+        if (playersLeft <= 4) return "Półfinał";
+        if (playersLeft <= 8) return "Ćwierćfinał";
+        if (playersLeft <= 16) return "1/8 finału";
+        return "Faza eliminacyjna";
+    }
+
+    function generateTournamentResults() {
+        let resultGroups = [];
+        
+        if (tFirstPlace) resultGroups.push({ header: "🥇 1. MIEJSCE", tasks: [tFirstPlace], style: "gh-high" });
+        if (tSecondPlace) resultGroups.push({ header: "🥈 2. MIEJSCE", tasks: [tSecondPlace], style: "gh-mid" });
+        if (tThirdPlace) resultGroups.push({ header: "🥉 3. MIEJSCE", tasks: [tThirdPlace], style: "gh-low" });
+        if (tFourthPlace) resultGroups.push({ header: "🏅 4. MIEJSCE", tasks: [tFourthPlace], style: "gh-low" });
+
+        for (let i = tRoundIndex - 1; i >= 0; i--) {
+            let groupTasks = tLosers[i] || [];
+            if (i === tRoundIndex - 1 && (tThirdPlace || tFourthPlace)) continue; 
+            
+            if (groupTasks.length > 0) {
+                let diff = tRoundIndex - i;
+                let label = "ODPADLI W RUNDZIE ELIMINACYJNEJ";
+                if (diff === 1) label = "PÓŁFINALIŚCI";
+                if (diff === 2) label = "ĆWIERĆFINALIŚCI";
+                if (diff === 3) label = "1/8 FINAŁU (TOP 16)";
+                
+                resultGroups.push({ header: label, tasks: groupTasks, style: "gh-loser" });
+            }
+        }
+        showUnifiedResults(resultGroups);
+    }
 
     // ==========================================
     // === TRYB 1: SORTOWANIE BINARNE ===
@@ -597,52 +820,40 @@
     document.getElementById('btnBinary').addEventListener('click', function() {
       if (!prepareTasks()) return;
       if (tasks.length < 2) { alert("Potrzeba min. 2 zadań do porównania."); location.reload(); return; }
-      
       decisionHistory = [];
       runBinarySort();
     });
 
     async function runBinarySort() {
         document.getElementById('comparison').style.display = 'block';
-        
-        decisionIndex = 0;
-        comparisonsMade = 0;
-        remainingExpectedComparisons = 0;
+        doneTasks = [];
+        tasks.forEach(t => t.isDone = false);
+        decisionIndex = 0; comparisonsMade = 0; remainingExpectedComparisons = 0;
         for (let i = 1; i < tasks.length; i++) remainingExpectedComparisons += Math.ceil(Math.log2(i + 1));
         updateBinaryProgress();
 
         let sorted = [tasks[0]];
-
         try {
             for (let i = 1; i < tasks.length; i++) {
                 remainingExpectedComparisons -= Math.ceil(Math.log2(sorted.length + 1));
-                
                 let insertIndex = await binarySearchInsertIndex(sorted, tasks[i]);
-                if (insertIndex !== null) {
-                    sorted.splice(insertIndex, 0, tasks[i]);
-                }
+                if (insertIndex !== null) sorted.splice(insertIndex, 0, tasks[i]);
                 updateBinaryProgress();
             }
-            showBinaryResults(sorted); 
+            showUnifiedResults([{ header: "LISTA ZADAŃ", tasks: sorted, style: "gh-high" }]); 
         } catch (e) {
-            if (e.message === 'undo') {
-                runBinarySort(); 
-            } else {
-                console.error(e);
-            }
+            if (e.message === 'undo') runBinarySort(); 
+            else console.error(e);
         }
     }
 
     async function binarySearchInsertIndex(sortedList, task) {
         let low = 0, high = sortedList.length;
-        
-        // Sprawdzenie na wejściu czy task nie był już "zrobiony" wcześniej (teoretycznie niemozliwe w petli glownej, ale dobre dla bezpieczenstwa)
         if (task.isDone) return null;
 
         while (low < high) {
             let mid = Math.floor((low + high) / 2);
-            comparisonsMade++;
-            updateBinaryProgress();
+            comparisonsMade++; updateBinaryProgress();
             
             let decision;
             if (decisionHistory[decisionIndex] !== undefined) {
@@ -666,24 +877,16 @@
             else if (decision.action === 'remove') {
                 if (decision.chosen === 'current') return null; 
                 else if (decision.chosen === 'mid') {
-                    sortedList.splice(mid, 1); 
-                    high = sortedList.length; 
-                    continue;
+                    sortedList.splice(mid, 1); high = sortedList.length; continue;
                 }
             } 
-            // OBSŁUGA ZROBIONE
             else if (decision.action === 'markDone') {
                  if (decision.chosen === 'current') {
-                     task.isDone = true;
-                     doneTasks.push(task);
-                     return null; // Przerywamy szukanie dla tego taska
+                     task.isDone = true; doneTasks.push(task); return null;
                  } else if (decision.chosen === 'mid') {
                      let midTask = sortedList[mid];
-                     midTask.isDone = true;
-                     doneTasks.push(midTask);
-                     sortedList.splice(mid, 1);
-                     high = sortedList.length; // lista się skurczyła
-                     continue;
+                     midTask.isDone = true; doneTasks.push(midTask);
+                     sortedList.splice(mid, 1); high = sortedList.length; continue;
                  }
             }
             else if (decision.action === 'choose') {
@@ -696,24 +899,16 @@
 
     function showBinaryComparison(taskA, taskB) {
         return new Promise(resolve => {
-            renderTaskInButton('taskAButton', taskA);
-            renderTaskInButton('taskBButton', taskB);
-            currentResolve = resolve;
-
+            renderTaskInButton('taskAButton', taskA); renderTaskInButton('taskBButton', taskB);
             const handle = (res) => { cleanupBinary(); resolve(res); };
             
             document.getElementById('taskAButton').onclick = () => handle({action: 'choose', chosen: 'current'});
             document.getElementById('taskBButton').onclick = () => handle({action: 'choose', chosen: 'mid'});
-            
             document.getElementById('removeTaskA').onclick = () => handle({action: 'remove', chosen: 'current'});
             document.getElementById('removeTaskB').onclick = () => handle({action: 'remove', chosen: 'mid'});
-            
-            // Obsługa Done
             document.getElementById('doneTaskA').onclick = () => handle({action: 'markDone', chosen: 'current'});
             document.getElementById('doneTaskB').onclick = () => handle({action: 'markDone', chosen: 'mid'});
-
             document.getElementById('undoButtonBinary').onclick = () => handle({action: 'undo'});
-            
             document.getElementById('editTaskA').onclick = () => editTask(taskA, 'taskAButton');
             document.getElementById('editTaskB').onclick = () => editTask(taskB, 'taskBButton');
 
@@ -730,13 +925,11 @@
         document.onkeydown = null;
         document.getElementById('taskAButton').onclick = null;
         document.getElementById('taskBButton').onclick = null;
-        currentResolve = null;
     }
 
     function updateBinaryProgress() {
         document.getElementById('progress').textContent = `Porównanie ${comparisonsMade} z ok. ${Math.max(comparisonsMade, comparisonsMade + remainingExpectedComparisons)}`;
     }
-
 
     // ==========================================
     // === TRYB 2: SORTOWANIE KUBEŁKOWE ===
@@ -749,80 +942,54 @@
 
     async function runBucketSort() {
         document.getElementById('bucketSorter').style.display = 'block';
-        document.getElementById('comparison').style.display = 'none';
-
-        buckets = [[], [], []];
-        bucketHistory = [];
-        let i = 0;
+        buckets = [[], [], []]; bucketHistory = []; let i = 0;
 
         while (i < tasks.length) {
             const task = tasks[i];
             updateBucketProgress(i, tasks.length);
-
             let decision = await showBucketDecision(task);
 
             if (decision.action === 'undo') {
                 if (i > 0) {
-                    i--; 
-                    const lastOp = bucketHistory.pop();
+                    i--; const lastOp = bucketHistory.pop();
                     if (lastOp) {
-                        if (lastOp.type === 'bucket') {
-                            buckets[lastOp.bucketIndex].pop();
-                        } else if (lastOp.type === 'done') {
-                            doneTasks.pop();
-                            task.isDone = false; // przywracamy stan
-                        }
-                        // remove nic nie robił z danymi, po prostu skipowal
+                        if (lastOp.type === 'bucket') buckets[lastOp.bucketIndex].pop();
+                        else if (lastOp.type === 'done') { doneTasks.pop(); tasks[i].isDone = false; }
                     }
                 }
             } else if (decision.action === 'remove') {
-                bucketHistory.push({ type: 'remove' }); 
-                i++;
+                bucketHistory.push({ type: 'remove' }); i++;
             } else if (decision.action === 'markDone') {
-                task.isDone = true;
-                doneTasks.push(task);
-                bucketHistory.push({ type: 'done' });
-                i++;
+                task.isDone = true; doneTasks.push(task); bucketHistory.push({ type: 'done' }); i++;
             } else if (decision.action === 'bucket') {
                 buckets[decision.bucketIndex].push(task);
-                bucketHistory.push({ type: 'bucket', bucketIndex: decision.bucketIndex });
-                i++;
+                bucketHistory.push({ type: 'bucket', bucketIndex: decision.bucketIndex }); i++;
             }
         }
-
-        document.getElementById('bucketSorter').style.display = 'none';
-        showBucketResults(buckets);
+        let groups = [];
+        if (buckets[0].length > 0) groups.push({header: "PRIORYTET WYSOKI (High)", tasks: buckets[0], style: "gh-high"});
+        if (buckets[1].length > 0) groups.push({header: "PRIORYTET ŚREDNI (Mid)", tasks: buckets[1], style: "gh-mid"});
+        if (buckets[2].length > 0) groups.push({header: "PRIORYTET NISKI (Low)", tasks: buckets[2], style: "gh-low"});
+        
+        showUnifiedResults(groups);
     }
 
     function showBucketDecision(task) {
         return new Promise(resolve => {
             renderTaskInButton('bucketTaskDisplay', task);
+            const handle = (res) => { document.onkeydown = null; resolve(res); };
             
-            const handle = (res) => { 
-                document.onkeydown = null;
-                resolve(res); 
-            };
-
-            const bucketBtns = document.querySelectorAll('.bucket-btn');
-            bucketBtns.forEach(btn => {
-                btn.onclick = () => {
-                    let bIdx = parseInt(btn.getAttribute('data-bucket'));
-                    handle({ action: 'bucket', bucketIndex: bIdx });
-                };
+            document.querySelectorAll('.bucket-btn').forEach(btn => {
+                btn.onclick = () => handle({ action: 'bucket', bucketIndex: parseInt(btn.getAttribute('data-bucket')) });
             });
-
             document.getElementById('removeBucketTask').onclick = () => handle({ action: 'remove' });
             document.getElementById('doneBucketTask').onclick = () => handle({ action: 'markDone' });
-            
             document.getElementById('undoButtonBucket').onclick = () => handle({ action: 'undo' });
             document.getElementById('editBucketTask').onclick = () => editTask(task, 'bucketTaskDisplay');
 
             document.onkeydown = (e) => {
                 if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
-                if (['1','2','3'].includes(e.key)) {
-                    let idx = parseInt(e.key) - 1;
-                    handle({ action: 'bucket', bucketIndex: idx });
-                }
+                if (['1','2','3'].includes(e.key)) handle({ action: 'bucket', bucketIndex: parseInt(e.key) - 1 });
                 if (e.key.toLowerCase() === 'c') handle({ action: 'undo' });
             };
         });
@@ -832,18 +999,15 @@
         document.getElementById('bucketProgress').textContent = `Zadanie ${current + 1} z ${total}`;
     }
 
-
     // ==========================================
-    // === WSPÓLNE FUNKCJE (RENDER, WYNIKI) ===
+    // === WSPÓLNE FUNKCJE RENDERUJĄCE ===
     // ==========================================
 
     function renderTaskInButton(btnId, taskObj) {
         const btn = document.getElementById(btnId);
         btn.innerHTML = ''; 
-        
         const mainSpan = document.createElement('span');
-        mainSpan.className = 'main-text';
-        mainSpan.textContent = taskObj.text;
+        mainSpan.className = 'main-text'; mainSpan.textContent = taskObj.text;
         btn.appendChild(mainSpan);
 
         if (taskObj.children && taskObj.children.length > 0) {
@@ -858,166 +1022,78 @@
     function editTask(taskObj, refreshBtnId) {
         const modal = document.getElementById('editModal');
         const textarea = document.getElementById('editTaskTextarea');
-        const saveBtn = document.getElementById('saveEditBtn');
-        const cancelBtn = document.getElementById('cancelEditBtn');
         const title = modal.querySelector('h3');
-
         title.textContent = "Edycja zadania";
+        
         let fullText = taskObj.text;
-        if (taskObj.children && taskObj.children.length > 0) {
-            fullText += '\n' + taskObj.children.join('\n');
-        }
+        if (taskObj.children && taskObj.children.length > 0) fullText += '\n' + taskObj.children.join('\n');
         
         textarea.value = fullText;
         modal.style.display = 'flex'; 
 
-        saveBtn.onclick = function() {
-            const content = textarea.value;
-            const lines = content.split('\n');
-            
+        document.getElementById('saveEditBtn').onclick = function() {
+            const lines = textarea.value.split('\n');
             if (lines.length > 0 && lines[0].trim() !== "") {
                 taskObj.text = lines[0];
-                if (lines.length > 1) {
-                    taskObj.children = lines.slice(1);
-                } else {
-                    taskObj.children = [];
-                }
+                taskObj.children = lines.length > 1 ? lines.slice(1) : [];
                 renderTaskInButton(refreshBtnId, taskObj);
                 modal.style.display = 'none';
-            } else {
-                alert("Zadanie nie może być puste!");
-            }
+            } else alert("Zadanie nie może być puste!");
         };
-
-        cancelBtn.onclick = function() {
-            modal.style.display = 'none';
-        };
+        document.getElementById('cancelEditBtn').onclick = () => modal.style.display = 'none';
     }
 
-    // --- Wyświetlanie wyników dla Sortowania BINARNEGO ---
-    function showBinaryResults(sortedTasks) {
-      prepareResultContainer();
-      const container = document.getElementById('rankedTasks');
-      document.getElementById('copyGapButton').style.display = 'none'; 
-      
-      // 1. Aktywne zadania
-      if (sortedTasks.length > 0) {
-          const ol = document.createElement('ol');
-          ol.className = 'result-list';
-          sortedTasks.forEach(taskObj => {
-            ol.appendChild(createTaskListItem(taskObj));
-          });
-          container.appendChild(ol);
-      }
-
-      // 2. Zadania zrobione
-      if (doneTasks.length > 0) {
-          renderDoneTasks(container);
-      }
-      
-      bindCopyAction('copyButton', () => {
-          let text = sortedTasks.map(t => formatTaskForClipboard(t)).join('\n');
-          if (doneTasks.length > 0) {
-              text += '\n\n' + doneTasks.map(t => formatTaskForClipboard(t)).join('\n');
-          }
-          return text.trim();
-      });
-    }
-
-    // --- Wyświetlanie wyników dla Sortowania KUBEŁKOWEGO ---
-    function showBucketResults(bucketArray) {
-        prepareResultContainer();
+    function showUnifiedResults(groups) {
+        document.getElementById('comparison').style.display = 'none';
+        document.getElementById('bucketSorter').style.display = 'none';
+        document.getElementById('tournamentMode').style.display = 'none';
+        document.getElementById('result').style.display = 'block';
         const container = document.getElementById('rankedTasks');
-        document.getElementById('copyGapButton').style.display = 'inline-block'; 
-        
-        const labels = ["PRIORYTET WYSOKI (High)", "PRIORYTET ŚREDNI (Mid)", "PRIORYTET NISKI (Low)"];
-        const styles = ["gh-high", "gh-mid", "gh-low"];
-        const mdHeaders = ["### PRIORYTET WYSOKI", "### PRIORYTET ŚREDNI", "### PRIORYTET NISKI"];
+        container.innerHTML = '';
 
-        // 1. Kubełki
-        bucketArray.forEach((tasksInBucket, index) => {
-            if (tasksInBucket.length === 0) return;
+        let copyTextWithHeaders = "";
+        let copyTextGaps = "";
 
+        groups.forEach(g => {
+            if (!g.tasks || g.tasks.length === 0) return;
             const header = document.createElement('div');
-            header.className = `group-header ${styles[index]}`;
-            header.textContent = labels[index];
+            header.className = `group-header ${g.style || 'gh-mid'}`;
+            header.textContent = g.header;
             container.appendChild(header);
 
             const ol = document.createElement('ol');
             ol.className = 'result-list';
-            tasksInBucket.forEach(task => {
-                ol.appendChild(createTaskListItem(task));
-            });
+            g.tasks.forEach(task => ol.appendChild(createTaskListItem(task)));
             container.appendChild(ol);
+
+            copyTextWithHeaders += `\n### ${g.header}\n` + g.tasks.map(t => formatTaskForClipboard(t)).join('\n') + `\n`;
+            copyTextGaps += g.tasks.map(t => formatTaskForClipboard(t)).join('\n') + `\n\n`;
         });
 
-        // 2. Sekcja Zrobione (jeśli są)
         if (doneTasks.length > 0) {
-            renderDoneTasks(container);
+            const header = document.createElement('div');
+            header.className = `group-header gh-done`;
+            header.textContent = "ZROBIONE";
+            container.appendChild(header);
+            
+            const ol = document.createElement('ol');
+            ol.className = 'result-list';
+            doneTasks.forEach(task => ol.appendChild(createTaskListItem(task)));
+            container.appendChild(ol);
+
+            copyTextWithHeaders += `\n### ZROBIONE\n` + doneTasks.map(t => formatTaskForClipboard(t)).join('\n') + `\n`;
+            copyTextGaps += doneTasks.map(t => formatTaskForClipboard(t)).join('\n') + `\n\n`;
         }
 
-        // Kopiowanie z nagłówkami
-        bindCopyAction('copyButton', () => {
-            let text = "";
-            bucketArray.forEach((tasksInBucket, index) => {
-                if (tasksInBucket.length === 0) return;
-                text += `\n${mdHeaders[index]}\n`; 
-                text += tasksInBucket.map(t => formatTaskForClipboard(t)).join('\n');
-                text += `\n`;
-            });
-            if (doneTasks.length > 0) {
-                text += `\n### ZROBIONE\n`;
-                text += doneTasks.map(t => formatTaskForClipboard(t)).join('\n');
-            }
-            return text.trim();
-        });
-
-        // Kopiowanie z przerwami
-        bindCopyAction('copyGapButton', () => {
-            let text = "";
-            bucketArray.forEach((tasksInBucket) => {
-                if (tasksInBucket.length === 0) return;
-                text += tasksInBucket.map(t => formatTaskForClipboard(t)).join('\n');
-                text += `\n\n`;
-            });
-            if (doneTasks.length > 0) {
-                text += doneTasks.map(t => formatTaskForClipboard(t)).join('\n');
-            }
-            return text.trim();
-        });
-    }
-    
-    // Pomocnicza do renderowania sekcji Zrobione
-    function renderDoneTasks(container) {
-        const header = document.createElement('div');
-        header.className = `group-header gh-done`;
-        header.textContent = "ZROBIONE";
-        container.appendChild(header);
-        
-        const ol = document.createElement('ol');
-        ol.className = 'result-list';
-        doneTasks.forEach(task => {
-            ol.appendChild(createTaskListItem(task));
-        });
-        container.appendChild(ol);
-    }
-
-    function prepareResultContainer() {
-      document.getElementById('comparison').style.display = 'none';
-      document.getElementById('bucketSorter').style.display = 'none';
-      document.getElementById('result').style.display = 'block';
-      document.getElementById('rankedTasks').innerHTML = '';
+        bindCopyAction('copyButton', () => copyTextWithHeaders.trim());
+        bindCopyAction('copyGapButton', () => copyTextGaps.trim());
     }
 
     function createTaskListItem(taskObj) {
         const li = document.createElement('li');
-        if (taskObj.isDone) {
-            li.className = 'task-done';
-        }
+        if (taskObj.isDone) li.className = 'task-done';
         
         const mainText = document.createElement('strong');
-        // Dodaj prefix wizualnie dla zrobionych? Możemy, ale CSS już skreśla.
-        // Jeśli chcemy widzieć checkbox w HTML:
         mainText.textContent = (taskObj.isDone ? "[x] " : "") + taskObj.text;
         li.appendChild(mainText);
 
@@ -1031,10 +1107,7 @@
     }
 
     function formatTaskForClipboard(taskObj) {
-        // Główna zmiana: dodanie "- [x] " jeśli isDone jest true
-        let prefix = taskObj.isDone ? "- [x] " : "";
-        
-        let block = prefix + taskObj.text;
+        let block = (taskObj.isDone ? "- [x] " : "") + taskObj.text;
         if (taskObj.children && taskObj.children.length > 0) block += '\n' + taskObj.children.join('\n');
         return block;
     }
@@ -1042,20 +1115,15 @@
     function bindCopyAction(buttonId, getTextFunction) {
       const oldBtn = document.getElementById(buttonId);
       if(!oldBtn) return;
-
       const newBtn = oldBtn.cloneNode(true); 
       oldBtn.parentNode.replaceChild(newBtn, oldBtn);
 
       newBtn.addEventListener('click', () => {
-          const finalString = getTextFunction();
-          
-          navigator.clipboard.writeText(finalString).then(() => {
+          navigator.clipboard.writeText(getTextFunction()).then(() => {
               const originalText = newBtn.textContent;
               const originalColor = newBtn.style.backgroundColor; 
-              
               newBtn.textContent = "✅ Skopiowano!";
               newBtn.style.backgroundColor = "#448844";
-              
               setTimeout(() => {
                   newBtn.textContent = originalText;
                   newBtn.style.backgroundColor = originalColor; 
